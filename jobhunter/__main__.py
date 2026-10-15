@@ -1,8 +1,12 @@
+from collections import Counter
+
 import httpx
 
 from jobhunter.collectors.base import Collector
 from jobhunter.collectors.gupy import GupyCollector
 from jobhunter.collectors.remotive import RemotiveCollector
+from jobhunter.filters import prefilter
+from jobhunter.profile import load_profile
 from jobhunter.storage import JobStore
 
 KEYWORDS = [
@@ -14,8 +18,7 @@ KEYWORDS = [
 ]
 
 
-def main() -> None:
-    store = JobStore()
+def collect(store: JobStore) -> None:
     collectors: list[Collector] = [
         GupyCollector(KEYWORDS),
         RemotiveCollector(search="intern"),
@@ -28,7 +31,31 @@ def main() -> None:
             continue
         new = store.add_new(jobs)
         print(f"[{collector.name}] {len(jobs)} coletadas, {len(new)} novas")
-    print(f"Total no banco: {len(store.all())}")
+
+
+def summarize(store: JobStore) -> None:
+    jobs = store.all()
+    print(f"\nTotal no banco: {len(jobs)}")
+    try:
+        profile = load_profile()
+    except FileNotFoundError:
+        print("profile/profile.yaml não encontrado; pulando o pré-filtro.")
+        return
+    results = [(job, prefilter(job, profile)) for job in jobs]
+    kept = [(job, result) for job, result in results if result.keep]
+    print(f"Passaram no pré-filtro: {len(kept)}")
+    rejected = Counter(result.reason for _, result in results if not result.keep)
+    for reason, count in rejected.most_common():
+        print(f"  descartadas ({reason}): {count}")
+    print("\nAmostra das que passaram:")
+    for job, result in kept[:10]:
+        print(f"  [{result.area}] {job.title} | {job.company} | {job.modality.value}")
+
+
+def main() -> None:
+    store = JobStore()
+    collect(store)
+    summarize(store)
 
 
 if __name__ == "__main__":
