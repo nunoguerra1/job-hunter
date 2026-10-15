@@ -1,0 +1,60 @@
+name: "Nuno Guerra"
+course: "Análise e Desenvolvimento de Sistemas"
+expected_graduation: 2027-07-01
+city: "Cornélio Procópio"
+state: "Paraná"
+min_salary: 1200
+summary: "Estudante de desenvolvimento full-stack, gerente de desenvolvimento em empresa júnior."
+
+modalities: ["home office", "híbrida", "presencial"]
+
+skills:
+  - python
+  - javascript
+  - typescript
+  - react
+  - node.js
+  - nestjs
+  - docker
+  - sql
+  - git
+
+areas:
+  - name: desenvolvimento
+    weight: 10
+    keywords:
+      - desenvolvedor
+      - desenvolvedora
+      - developer
+      - full stack
+      - fullstack
+      - backend
+      - back-end
+      - back end
+      - frontend
+      - front-end
+      - front end
+      - software
+      - programador
+      - web
+      - mobile
+      - desenvolvimento de software
+      - desenvolvimento de sistemas
+      - desenvolvimento web
+  - name: dados
+    weight: 6
+    keywords: [dados, data, analytics, bi, engenharia de dados, cientista de dados]
+  - name: ia
+    weight: 6
+    keywords: [inteligencia artificial, machine learning, ia, ml, llm]
+  - name: outras-ti
+    weight: 3
+    keywords: [tecnologia, ti, qa, qualidade de software, devops, cloud, seguranca da informacao]
+
+# Só são aplicadas ao TÍTULO da vaga
+excluded_title_keywords:
+  - suporte
+  - help desk
+  - helpdesk
+  - service desk
+  - tecnico de informatica
