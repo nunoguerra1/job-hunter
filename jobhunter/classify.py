@@ -14,3 +14,10 @@ def detect_level(title: str) -> Level:
         if pattern.search(title):
             return level
     return Level.OTHER
+
+_PCD = re.compile(r"\b(pcds?|pessoas? com defici[eê]ncia)\b", re.I)
+
+
+def is_pcd_title(title: str) -> bool:
+    """Vagas exclusivas para PcD costumam dizer isso no título."""
+    return _PCD.search(title) is not None

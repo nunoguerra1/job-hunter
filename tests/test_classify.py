@@ -1,6 +1,6 @@
 import pytest
 
-from jobhunter.classify import detect_level
+from jobhunter.classify import detect_level, is_pcd_title
 from jobhunter.models import Level
 
 
@@ -17,3 +17,8 @@ from jobhunter.models import Level
 )
 def test_detect_level(title, expected):
     assert detect_level(title) == expected
+
+def test_is_pcd_title():
+    assert is_pcd_title("Estágio em TI - Exclusivo PcD")
+    assert is_pcd_title("Vaga para Pessoas com Deficiência")
+    assert not is_pcd_title("Estágio em Desenvolvimento")

@@ -3,7 +3,7 @@ from datetime import datetime
 
 import httpx
 
-from jobhunter.classify import detect_level
+from jobhunter.classify import detect_level, is_pcd_title
 from jobhunter.collectors.base import Collector
 from jobhunter.models import Job, Level, Modality
 
@@ -72,7 +72,7 @@ class GupyCollector(Collector):
             description=item.get("description", ""),
             published_at=_parse_date(item.get("publishedDate")),
             deadline=_parse_date(item.get("applicationDeadline")),
-            pcd=bool(item.get("disabilities")),
+            pcd=is_pcd_title(title),
         )
 
 

@@ -38,4 +38,12 @@ def test_fetch_normalizes_and_dedups():
     assert job.location == "Curitiba, Paraná"
     assert job.company == "Empresa X"
     assert job.deadline is not None
-    assert job.pcd is True
+    assert job.pcd is False  # "disabilities" não significa vaga exclusiva
+
+@respx.mock
+def test_pcd_detected_from_title():
+    fake = {"data": [{**FAKE["data"][0], "id": 101, "name": "Estágio em TI - Exclusivo PcD"}]}
+    respx.get(API_URL).mock(return_value=httpx.Response(200, json=fake))
+    jobs = GupyCollector(keywords=["ti"], max_pages=1, delay=0).fetch()
+
+    assert jobs[0].pcd is True
