@@ -2,6 +2,7 @@ import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
 
+from jobhunter.match import MatchResult
 from jobhunter.models import Job
 
 
@@ -15,6 +16,15 @@ class JobStore:
                 uid TEXT PRIMARY KEY,
                 data TEXT NOT NULL,
                 first_seen TEXT NOT NULL
+            )
+            """
+        )
+        self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS scores (
+                uid TEXT PRIMARY KEY,
+                data TEXT NOT NULL,
+                scored_at TEXT NOT NULL
             )
             """
         )
@@ -37,3 +47,14 @@ class JobStore:
     def all(self) -> list[Job]:
         rows = self.conn.execute("SELECT data FROM jobs ORDER BY first_seen DESC").fetchall()
         return [Job.model_validate_json(row[0]) for row in rows]
+
+    def save_score(self, uid: str, result: MatchResult) -> None:
+        self.conn.execute(
+            "INSERT OR REPLACE INTO scores (uid, data, scored_at) VALUES (?, ?, ?)",
+            (uid, result.model_dump_json(), datetime.now(UTC).isoformat()),
+        )
+        self.conn.commit()
+
+    def scores(self) -> dict[str, MatchResult]:
+        rows = self.conn.execute("SELECT uid, data FROM scores").fetchall()
+        return {uid: MatchResult.model_validate_json(data) for uid, data in rows}
