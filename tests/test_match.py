@@ -1,4 +1,4 @@
-from jobhunter.match import MatchResult, clean_description, score_job
+from jobhunter.match import MatchResult, clean_description, score_batch, score_job
 from jobhunter.models import Job
 from jobhunter.profile import load_profile
 
@@ -34,3 +34,19 @@ def test_score_job_uses_fake_llm_and_hides_name():
 
 def test_clean_description_strips_html_and_entities():
     assert clean_description("<p>Olá&nbsp;mundo</p>") == "Olá mundo"
+
+class FakeBatchLLM:
+    def generate_json(self, prompt, schema):
+        item = {"course_compatible": True, "matched_skills": [], "missing_skills": [],
+                "summary": "ok"}
+        return schema(results=[{"id": 0, "score": 90, **item}, {"id": 1, "score": 40, **item}])
+
+
+def test_score_batch_maps_results_to_jobs():
+    jobs = [
+        Job(source="t", external_id="1", title="A", company="c", url="u"),
+        Job(source="t", external_id="2", title="B", company="c", url="u"),
+    ]
+    results = score_batch(jobs, PROFILE, FakeBatchLLM())
+    assert results["t:1"].score == 90
+    assert results["t:2"].score == 40
