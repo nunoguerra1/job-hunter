@@ -11,16 +11,25 @@ from jobhunter.storage import JobStore
 
 KEYWORDS = [
     "estágio desenvolvimento",
+    "estágio desenvolvedor",
+    "estágio software",
+    "estágio full stack",
+    "estágio backend",
+    "estágio frontend",
     "estágio dados",
+    "estágio inteligência artificial",
     "estágio tecnologia",
     "trainee tecnologia",
     "desenvolvedor júnior",
+    "programador júnior",
+    "analista de sistemas júnior",
 ]
 
 
 def collect(store: JobStore) -> None:
     collectors: list[Collector] = [
-        GupyCollector(KEYWORDS),
+        GupyCollector(KEYWORDS, max_pages=5),
+        GupyCollector(KEYWORDS[:7], workplace_type="remote", max_pages=5),
         RemotiveCollector(search="intern"),
     ]
     for collector in collectors:
