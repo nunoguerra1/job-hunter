@@ -21,6 +21,8 @@ def clean_description(raw: str, limit: int = 6000) -> str:
     text = html.unescape(text)
     return re.sub(r"\s+", " ", text).strip()[:limit]
 
+def _join(items: list[str]) -> str:
+    return "; ".join(items) if items else "não informado"
 
 def build_prompt(job: Job, profile: Profile) -> str:
     return f"""\
@@ -28,12 +30,12 @@ Você é um recrutador sênior de tecnologia avaliando a adequação de um candi
 Avalie com rigor e honestidade, sem inflar a nota. Responda SOMENTE com JSON no esquema pedido.
 
 CANDIDATO
-- Curso: 
-{profile.course} (previsão de formatura: {profile.expected_graduation:%m/%Y})
-- Habilidades: 
-{", ".join(profile.skills)}
-- Resumo: 
-{profile.summary}
+- Curso: {profile.course} (previsão de formatura: {profile.expected_graduation:%m/%Y})
+- Habilidades: {", ".join(profile.skills)}
+- Idiomas: {_join(profile.languages)}
+- Experiência: {_join(profile.experience)}
+- Projetos: {_join(profile.projects)}
+- Resumo: {profile.summary}
 
 VAGA
 - Título: 

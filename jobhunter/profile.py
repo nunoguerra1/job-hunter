@@ -23,6 +23,9 @@ class Profile(BaseModel):
     summary: str = ""
     modalities: list[Modality]
     skills: list[str]
+    languages: list[str] = Field(default_factory=list)
+    experience: list[str] = Field(default_factory=list)
+    projects: list[str] = Field(default_factory=list)
     areas: list[AreaPreference]
     excluded_title_keywords: list[str] = Field(default_factory=list)
 

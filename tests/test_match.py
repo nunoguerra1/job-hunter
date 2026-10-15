@@ -28,6 +28,7 @@ def test_score_job_uses_fake_llm_and_hides_name():
     assert isinstance(result, MatchResult)
     assert result.score == 85
     assert "Estágio Python" in llm.prompts[0]
+    assert "Inglês (avançado)" in llm.prompts[0]
     assert PROFILE.name not in llm.prompts[0]
 
 

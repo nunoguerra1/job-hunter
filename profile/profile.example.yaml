@@ -19,6 +19,16 @@ skills:
   - sql
   - git
 
+languages:
+  - "Português (nativo)"
+  - "Inglês (avançado)"
+
+experience:
+  - "Cargo e empresa: o que você faz, com números quando possível"
+
+projects:
+  - "Nome do projeto: stack e o que ele faz"
+
 areas:
   - name: desenvolvimento
     weight: 10
