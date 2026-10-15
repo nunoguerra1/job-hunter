@@ -23,8 +23,8 @@ def main() -> None:
     for collector in collectors:
         try:
             jobs = collector.fetch()
-        except httpx.HTTPError as error:
-            print(f"[{collector.name}] erro: {error}")
+        except (httpx.HTTPError, ValueError) as error:
+            print(f"[{collector.name}] ERRO: {error}")
             continue
         new = store.add_new(jobs)
         print(f"[{collector.name}] {len(jobs)} coletadas, {len(new)} novas")
