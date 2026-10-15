@@ -31,6 +31,8 @@ class Job(BaseModel):
     benefits: list[str] = Field(default_factory=list)
     description: str = ""
     published_at: datetime | None = None
+    deadline: datetime | None = None
+    pcd: bool = False  # marcada pela Gupy como vaga para PcD
 
     @property
     def uid(self) -> str:

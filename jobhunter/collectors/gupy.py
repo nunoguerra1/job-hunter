@@ -71,6 +71,8 @@ class GupyCollector(Collector):
             location=location or None,
             description=item.get("description", ""),
             published_at=_parse_date(item.get("publishedDate")),
+            deadline=_parse_date(item.get("applicationDeadline")),
+            pcd=bool(item.get("disabilities")),
         )
 
 
