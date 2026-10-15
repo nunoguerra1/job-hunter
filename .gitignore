@@ -218,3 +218,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# job-hunter
+.env
+data/
+profile/*.yaml
+!profile/*.example.yaml
