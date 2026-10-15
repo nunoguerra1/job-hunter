@@ -1,17 +1,17 @@
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
 
-class Modality(str, Enum):
+class Modality(StrEnum):
     REMOTE = "home office"
     ONSITE = "presencial"
     HYBRID = "híbrida"
     UNKNOWN = "não informado"
 
 
-class Level(str, Enum):
+class Level(StrEnum):
     INTERN = "estágio"
     TRAINEE = "trainee"
     JUNIOR = "júnior"
