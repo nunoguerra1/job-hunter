@@ -2,12 +2,23 @@ from datetime import datetime
 
 from jobhunter.match import MatchResult
 from jobhunter.models import Job
-from jobhunter.sheets import HEADERS, ID_COL, sync
+from jobhunter.sheets import HEADERS, ID_COL, reset_sheet, sync
+
+
+class FakeSpreadsheet:
+    def __init__(self):
+        self.requests: list[dict] = []
+
+    def batch_update(self, body):
+        self.requests.extend(body["requests"])
 
 
 class FakeWorksheet:
+    id = 7
+
     def __init__(self):
         self.values: list[list[str]] = []
+        self.spreadsheet = FakeSpreadsheet()
 
     def get_all_values(self):
         return self.values
@@ -20,6 +31,9 @@ class FakeWorksheet:
 
     def append_rows(self, rows, value_input_option):
         self.values.extend([[str(cell) for cell in row] for row in rows])
+
+    def clear(self):
+        self.values = []
 
 
 def make(external_id: str, score: int):
@@ -59,3 +73,14 @@ def test_sync_refreshes_old_header_names():
 
     assert ws.values[0] == HEADERS
     assert len(ws.values) == 2
+
+
+def test_reset_sheet_clears_values_and_formatting():
+    ws = FakeWorksheet()
+    ws.values = [["lixo"]]
+    reset_sheet(ws)
+
+    assert ws.values == []
+    request = ws.spreadsheet.requests[0]["updateCells"]
+    assert request["fields"] == "userEnteredFormat"
+    assert request["range"] == {"sheetId": 7}

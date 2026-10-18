@@ -17,3 +17,5 @@ cities:
   Recife: {rent: 1500, food: 800, transport: 300, other: 450}
   Salvador: {rent: 1400, food: 800, transport: 300, other: 450}
   Manaus: {rent: 1300, food: 800, transport: 280, other: 450}
+  Barueri: {rent: 1900, food: 950, transport: 300, other: 550}
+  Contagem: {rent: 1100, food: 800, transport: 280, other: 450}

@@ -19,8 +19,8 @@ SUMMARY_COL = HEADERS.index("Resumo da IA")
 
 COLUMN_WIDTHS = {
     "Título": 320, "Empresa": 200, "Tipo de cargo": 110, "Salário": 150,
-    "Benefícios": 230, "Modalidade": 110, "Local": 200, "Custo de vida/mês": 130,
-    "Sobra estimada": 190, "Nota": 60, "Resumo da IA": 420, "Prazo": 90, "Etapas": 70,
+    "Benefícios": 230, "Modalidade": 110, "Local": 200, "Custo de vida/mês": 150,
+    "Sobra estimada": 200, "Nota": 60, "Resumo da IA": 420, "Prazo": 90, "Etapas": 70,
     "Status": 130, "Link": 200, "ID": 110,
 }
 
@@ -31,7 +31,7 @@ def cost_columns(job: Job, table: CostTable | None, home_city: str) -> tuple[str
     result = estimate(job, home_city, table)
     cost = ("" if result.city_known else "~") + brl(result.cost)
     if result.surplus is None:
-        return cost, f"salário não informado (precisa de ~{brl(result.cost)})"
+        return cost, f"sem salário: precisa ~{brl(result.cost)}"
     return cost, brl(result.surplus)
 
 
@@ -109,6 +109,12 @@ def sync(
         ws.append_rows(new_rows, value_input_option="RAW")
     return len(new_rows)
 
+def reset_sheet(ws: gspread.Worksheet) -> None:
+    """Limpa valores E formatação (ws.clear() sozinho deixa a formatação antiga para trás)."""
+    ws.clear()
+    ws.spreadsheet.batch_update({"requests": [
+        {"updateCells": {"range": {"sheetId": ws.id}, "fields": "userEnteredFormat"}},
+    ]})
 
 def style_sheet(ws: gspread.Worksheet) -> None:
     """Cabeçalho destacado e congelado, filtros, larguras e quebra de linha no resumo."""
@@ -163,4 +169,9 @@ def style_sheet(ws: gspread.Worksheet) -> None:
                 "fields": "pixelSize",
             }
         })
+    requests.append({
+        "autoResizeDimensions": {
+            "dimensions": {"sheetId": sheet_id, "dimension": "ROWS", "startIndex": 1}
+        }
+    })
     ws.spreadsheet.batch_update({"requests": requests})
