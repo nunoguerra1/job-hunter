@@ -20,3 +20,9 @@ def test_save_and_load_score():
     )
     store.save_score("t:1", result)
     assert store.scores()["t:1"].score == 80
+
+def test_status_roundtrip():
+    store = JobStore(":memory:")
+    store.set_status("t:1", "awaiting")
+    store.set_status("t:1", "approved")
+    assert store.statuses() == {"t:1": "approved"}

@@ -28,6 +28,15 @@ class JobStore:
             )
             """
         )
+        self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS applications (
+                uid TEXT PRIMARY KEY,
+                status TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
         self.conn.commit()
 
     def add_new(self, jobs: list[Job]) -> list[Job]:
@@ -58,3 +67,14 @@ class JobStore:
     def scores(self) -> dict[str, MatchResult]:
         rows = self.conn.execute("SELECT uid, data FROM scores").fetchall()
         return {uid: MatchResult.model_validate_json(data) for uid, data in rows}
+
+    def set_status(self, uid: str, status: str) -> None:
+        self.conn.execute(
+            "INSERT OR REPLACE INTO applications (uid, status, updated_at) VALUES (?, ?, ?)",
+            (uid, status, datetime.now(UTC).isoformat()),
+        )
+        self.conn.commit()
+
+    def statuses(self) -> dict[str, str]:
+        rows = self.conn.execute("SELECT uid, status FROM applications").fetchall()
+        return dict(rows)
