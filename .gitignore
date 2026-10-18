@@ -226,3 +226,4 @@ profile/*.yaml
 !profile/*.example.yaml
 
 credentials/*
+output/
