@@ -1,0 +1,35 @@
+stories:
+  - id: lideranca-dev
+    tags: [lideranca, gestao, colaboracao, ownership]
+    situation: "PREENCHER: contexto da gestão do time de desenvolvimento na empresa júnior"
+    task: "PREENCHER: o que era sua responsabilidade"
+    action: "PREENCHER: o que você fez, em primeira pessoa"
+    result: "PREENCHER: resultado concreto, com número real se tiver"
+  - id: arquitetura
+    tags: [inovacao, tecnica, autonomia, qualidade]
+    situation: "PREENCHER: projeto em que você tomou decisões de arquitetura"
+    task: "PREENCHER: qual problema técnico precisava resolver"
+    action: "PREENCHER: decisões que você tomou e por quê"
+    result: "PREENCHER: o que melhorou"
+  - id: capacitacao
+    tags: [ensino, cultura, desenvolvimento-de-pessoas]
+    situation: "PREENCHER: contexto das capacitações técnicas que você organiza"
+    task: "PREENCHER: objetivo da capacitação"
+    action: "PREENCHER: como você estruturou e conduziu"
+    result: "PREENCHER: resultado para o time ou para os trainees"
+  - id: projetos-impacto
+    tags: [inovacao, impacto-social, proatividade]
+    situation: "PREENCHER: por que você criou projetos pessoais de impacto social e ambiental"
+    task: "PREENCHER: objetivo de um deles"
+    action: "PREENCHER: stack e o que você construiu"
+    result: "PREENCHER: estado atual do projeto"
+
+cv_highlights:
+  - id: h-lideranca
+    text: "PREENCHER: bullet sobre liderança do time, com resultado"
+  - id: h-arquitetura
+    text: "PREENCHER: bullet sobre decisões de arquitetura"
+  - id: h-capacitacao
+    text: "PREENCHER: bullet sobre capacitações técnicas"
+  - id: h-projetos
+    text: "PREENCHER: bullet sobre projetos pessoais, com a stack"
