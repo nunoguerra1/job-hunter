@@ -2,7 +2,7 @@ from datetime import datetime
 
 from jobhunter.match import MatchResult
 from jobhunter.models import Job
-from jobhunter.sheets import HEADERS, sync
+from jobhunter.sheets import HEADERS, ID_COL, sync
 
 
 class FakeWorksheet:
@@ -13,16 +13,13 @@ class FakeWorksheet:
         return self.values
 
     def update(self, range_name, values):
-        self.values = [list(row) for row in values]
+        self.values[: len(values)] = [list(row) for row in values]
+
+    def insert_rows(self, rows, row):
+        self.values[row - 1 : row - 1] = [list(r) for r in rows]
 
     def append_rows(self, rows, value_input_option):
         self.values.extend([[str(cell) for cell in row] for row in rows])
-
-    def format(self, range_name, fmt):
-        pass
-
-    def freeze(self, rows):
-        pass
 
 
 def make(external_id: str, score: int):
@@ -42,4 +39,23 @@ def test_sync_appends_only_new_jobs():
     assert len(ws.values) == 3
 
     assert sync(ws, [*entries, make("3", 80)]) == 1
-    assert ws.values[-1][HEADERS.index("ID")] == "t:3"
+    assert ws.values[-1][ID_COL] == "t:3"
+
+
+def test_sync_inserts_header_when_missing():
+    ws = FakeWorksheet()
+    ws.values = [["Vaga antiga", "x"]]
+    sync(ws, [make("1", 90)])
+
+    assert ws.values[0] == HEADERS
+    assert ws.values[1][0] == "Vaga antiga"
+    assert len(ws.values) == 3
+
+
+def test_sync_refreshes_old_header_names():
+    ws = FakeWorksheet()
+    ws.values = [["Vaga"] + ["x"] * (ID_COL - 1) + ["ID"]]
+    sync(ws, [make("1", 90)])
+
+    assert ws.values[0] == HEADERS
+    assert len(ws.values) == 2

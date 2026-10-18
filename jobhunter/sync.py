@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 
 from jobhunter.filters import prefilter
 from jobhunter.profile import load_profile
-from jobhunter.sheets import open_worksheet, sync
+from jobhunter.sheets import open_worksheet, style_sheet, sync
 from jobhunter.storage import JobStore
 
 MIN_SCORE = 60
@@ -24,7 +24,9 @@ def main(min_score: int = MIN_SCORE) -> None:
         and prefilter(job, profile).keep
     ]
     entries.sort(key=lambda entry: entry[1].score, reverse=True)
-    added = sync(open_worksheet(), entries)
+    ws = open_worksheet()
+    added = sync(ws, entries)
+    style_sheet(ws)
     print(f"{len(entries)} vagas elegíveis (nota >= {min_score}); {added} novas na planilha.")
 
 
