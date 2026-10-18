@@ -1,9 +1,10 @@
 from pydantic import BaseModel
 
 from jobhunter.extract import extract_salary
+from jobhunter.filters import normalize
 from jobhunter.llm import LLM
 from jobhunter.match import MatchResult, _candidate_block, _job_block
-from jobhunter.models import Job
+from jobhunter.models import Job, Modality
 from jobhunter.profile import Profile
 from jobhunter.stories import StoryBank
 
@@ -30,21 +31,31 @@ INTRO = (
     "Responda SOMENTE com JSON no esquema pedido."
 )
 
-RULES = """REGRAS
-- company_values: 3 a 5 valores ou traços de cultura que a descrição da vaga evidencia
-  (ex.: inovação, ownership, impacto social). Se a descrição não mostrar nenhum,
-  devolva lista vazia e NÃO invente valores.
-- story_ids: 1 ou 2 ids de histórias que melhor provam os valores da empresa.
-- why_us: resposta para "Por que você quer trabalhar conosco?", em primeira pessoa,
-  3 parágrafos curtos (cerca de 900 a 1.100 caracteres): (1) gancho específico sobre a
-  empresa ou a vaga, (2) prova prática usando as histórias escolhidas, (3) fechamento
-  com o que o candidato quer construir e entregar.
-- Tom profissional e natural. Proibido: clichês ("sempre sonhei", "empresa de renome")
-  e adjetivos vazios.
-- Use SOMENTE fatos das histórias, do perfil e da vaga. Não invente números, cargos
-  ou tecnologias.
-- cv_summary: 2 a 3 frases de resumo profissional adaptado à vaga, só com fatos do perfil.
-- cv_highlight_ids: de 4 a 6 ids de cv_highlights, do mais ao menos relevante."""
+RULES = """REGRAS GERAIS
+- Use SOMENTE fatos das histórias, do perfil, da motivação e da vaga. Não invente números,
+  cargos, tecnologias nem motivações.
+- company_values: de 3 a 5 valores que a descrição evidencia, com as palavras da empresa.
+  Se a descrição não mostrar nenhum, devolva lista vazia.
+- story_ids: 2 histórias que provem os 2 valores mais fortes da vaga. Prefira histórias
+  com resultado concreto.
+
+REGRAS DO why_us (3 parágrafos, 900 a 1.100 caracteres no total)
+1. Gancho: um desafio, produto ou atividade ESPECÍFICA da vaga, ligado a algo concreto que o
+   candidato já fez. Não elogie a empresa e não parafraseie o marketing dela.
+2. Prova: no máximo 2 valores, cada um sustentado por uma história (o que fez e o resultado).
+   Não cite um valor sem prová-lo. Se o candidato tem experiência de liderança e se candidata
+   a estágio, explique em uma frase o motivo, usando a MOTIVAÇÃO informada.
+3. Fechamento: 1 ou 2 entregas concretas que ele pode fazer nos primeiros meses, tiradas das
+   atividades da vaga, sem afirmar habilidades que o candidato não tem.
+
+PROIBIDO: "ambiente ideal", "reflete a visão que busco", "perfeitamente", "contribuindo
+ativamente", "de forma autônoma", "líder do mercado", "sempre sonhei", "empresa de renome"
+e qualquer elogio genérico à empresa.
+
+cv_summary: 2 frases. A primeira diz quem é (curso, cargo e a evolução, quando as histórias
+mostrarem). A segunda liga a experiência à vaga. Só fatos do perfil.
+cv_highlight_ids: de 4 a 6 ids, do mais ao menos relevante PARA ESTA VAGA; inclua um de
+liderança quando existir."""
 
 
 def build_prompt(job: Job, profile: Profile, bank: StoryBank) -> str:
@@ -54,12 +65,20 @@ def build_prompt(job: Job, profile: Profile, bank: StoryBank) -> str:
         for s in bank.stories
     )
     highlights = "\n".join(f"[{h.id}] {h.text}" for h in bank.cv_highlights)
+    motivation = profile.motivation or "não informada"
     return (
-        f"{INTRO}\n\n{_candidate_block(profile)}\n\n"
+        f"{INTRO}\n\n{_candidate_block(profile)}\n"
+        f"- Motivação para buscar estágio (palavras do candidato): {motivation}\n\n"
         f"HISTÓRIAS DISPONÍVEIS\n{stories}\n\n"
         f"CV_HIGHLIGHTS DISPONÍVEIS\n{highlights}\n\n"
         f"VAGA\n{_job_block(job, 5000)}\n\n{RULES}"
     )
+
+
+def _same_city(location: str | None, home_city: str) -> bool:
+    if not location:
+        return False
+    return normalize(location.split(",")[0].strip()) == normalize(home_city.strip())
 
 
 def salary_answer(job: Job, profile: Profile) -> str:
@@ -67,6 +86,11 @@ def salary_answer(job: Job, profile: Profile) -> str:
     stated = job.salary_text or extract_salary(job.description)
     if stated:
         return f"Estou de acordo com a bolsa-auxílio prevista na vaga ({stated})."
+    relocation = job.modality in {Modality.ONSITE, Modality.HYBRID} and not _same_city(
+        job.location, profile.city
+    )
+    if relocation:
+        return "A combinar, de acordo com a faixa prevista pela empresa para o programa."
     if profile.min_salary:
         value = f"{profile.min_salary:,}".replace(",", ".")
         return (

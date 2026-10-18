@@ -21,6 +21,7 @@ class Profile(BaseModel):
     state: str
     min_salary: int | None = None
     summary: str = ""
+    motivation: str = ""
     modalities: list[Modality]
     skills: list[str]
     languages: list[str] = Field(default_factory=list)

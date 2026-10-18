@@ -5,6 +5,7 @@ city: "Cornélio Procópio"
 state: "Paraná"
 min_salary: 1200
 summary: "Estudante de desenvolvimento full-stack, gerente de desenvolvimento em empresa júnior."
+motivation: "Por que você, já tendo experiência de liderança, busca estágio (em suas palavras)"
 
 modalities: ["home office", "híbrida", "presencial"]
 
