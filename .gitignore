@@ -224,3 +224,5 @@ __marimo__/
 data/
 profile/*.yaml
 !profile/*.example.yaml
+
+credentials/*
