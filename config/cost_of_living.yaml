@@ -1,0 +1,19 @@
+# Estimativas mensais em R$ (aluguel de kitnet/studio, alimentação, transporte, outros).
+# Valores iniciais aproximados: confira e ajuste.
+default: {rent: 1500, food: 850, transport: 300, other: 500}
+
+cities:
+  Cornélio Procópio: {rent: 900, food: 700, transport: 150, other: 350}
+  Londrina: {rent: 1300, food: 800, transport: 250, other: 450}
+  Curitiba: {rent: 1600, food: 850, transport: 300, other: 500}
+  Porto Alegre: {rent: 1500, food: 850, transport: 300, other: 500}
+  Florianópolis: {rent: 2300, food: 950, transport: 300, other: 550}
+  São Paulo: {rent: 2300, food: 1000, transport: 350, other: 600}
+  Campinas: {rent: 1700, food: 850, transport: 300, other: 500}
+  Rio de Janeiro: {rent: 2000, food: 950, transport: 350, other: 550}
+  Belo Horizonte: {rent: 1600, food: 850, transport: 300, other: 500}
+  Brasília: {rent: 1900, food: 900, transport: 300, other: 550}
+  Goiânia: {rent: 1400, food: 800, transport: 280, other: 450}
+  Recife: {rent: 1500, food: 800, transport: 300, other: 450}
+  Salvador: {rent: 1400, food: 800, transport: 300, other: 450}
+  Manaus: {rent: 1300, food: 800, transport: 280, other: 450}

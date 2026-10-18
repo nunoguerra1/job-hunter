@@ -3,12 +3,15 @@ from pathlib import Path
 
 import gspread
 
+from jobhunter.cost import CostTable, brl, estimate
+from jobhunter.extract import extract_benefits, extract_salary
 from jobhunter.match import MatchResult
 from jobhunter.models import Job
 
 HEADERS = [
     "Título", "Empresa", "Tipo de cargo", "Salário", "Benefícios", "Modalidade", "Local",
-    "Nota", "Resumo da IA", "Prazo", "Etapas", "Status", "Link", "ID",
+    "Custo de vida/mês", "Sobra estimada", "Nota", "Resumo da IA", "Prazo", "Etapas",
+    "Status", "Link", "ID",
 ]
 ID_COL = HEADERS.index("ID")
 ETAPAS_COL = HEADERS.index("Etapas")
@@ -16,26 +19,44 @@ SUMMARY_COL = HEADERS.index("Resumo da IA")
 
 COLUMN_WIDTHS = {
     "Título": 320, "Empresa": 200, "Tipo de cargo": 110, "Salário": 150,
-    "Benefícios": 230, "Modalidade": 110, "Local": 200, "Nota": 60,
-    "Resumo da IA": 420, "Prazo": 90, "Etapas": 70, "Status": 130,
-    "Link": 200, "ID": 110,
+    "Benefícios": 230, "Modalidade": 110, "Local": 200, "Custo de vida/mês": 130,
+    "Sobra estimada": 190, "Nota": 60, "Resumo da IA": 420, "Prazo": 90, "Etapas": 70,
+    "Status": 130, "Link": 200, "ID": 110,
 }
 
 
-def job_to_row(job: Job, result: MatchResult) -> list[str | int]:
+def cost_columns(job: Job, table: CostTable | None, home_city: str) -> tuple[str, str]:
+    if table is None:
+        return "", ""
+    result = estimate(job, home_city, table)
+    cost = ("" if result.city_known else "~") + brl(result.cost)
+    if result.surplus is None:
+        return cost, f"salário não informado (precisa de ~{brl(result.cost)})"
+    return cost, brl(result.surplus)
+
+
+def job_to_row(
+    job: Job, result: MatchResult, table: CostTable | None = None, home_city: str = ""
+) -> list[str | int]:
+    salary = job.salary_text or extract_salary(job.description) or "não informado"
+    benefits = job.benefits or extract_benefits(job.description)
+    talent_pool = "banco de talentos" in job.title.lower()
+    cost, surplus = cost_columns(job, table, home_city)
     return [
         job.title,
         job.company,
         job.level.value,
-        job.salary_text or "não informado",
-        ", ".join(job.benefits) or "não informado",
+        salary,
+        ", ".join(benefits) or "não informado",
         job.modality.value,
         job.location or "",
+        cost,
+        surplus,
         result.score,
         result.summary,
         job.deadline.strftime("%d/%m/%Y") if job.deadline else "",
         "?/?",
-        "Nova",
+        "Banco de talentos" if talent_pool else "Nova",
         job.url,
         job.uid,
     ]
@@ -54,29 +75,36 @@ def open_worksheet(title: str = "Vagas") -> gspread.Worksheet:
         return spreadsheet.worksheet(title)
     except gspread.WorksheetNotFound:
         first = spreadsheet.sheet1
-        if not first.get_all_values():  # aba padrão vazia: renomeia e reaproveita
+        if not first.get_all_values():
             first.update_title(title)
             return first
         return spreadsheet.add_worksheet(title=title, rows=1000, cols=len(HEADERS))
 
 
-def sync(ws: gspread.Worksheet, entries: list[tuple[Job, MatchResult]]) -> int:
+def sync(
+    ws: gspread.Worksheet,
+    entries: list[tuple[Job, MatchResult]],
+    table: CostTable | None = None,
+    home_city: str = "",
+) -> int:
     """Acrescenta só as vagas novas, sem mexer nas linhas existentes (Status e Etapas são seus)."""
     values = ws.get_all_values()
     first = values[0] if values else []
     has_header = "ID" in first
 
-    if not values:
+    if not values or has_header:
         ws.update(range_name="A1", values=[HEADERS])
-    elif has_header:
-        ws.update(range_name="A1", values=[HEADERS])  # atualiza os nomes das colunas
     else:
-        ws.insert_rows([HEADERS], row=1)  # planilha sem cabeçalho: insere no topo
+        ws.insert_rows([HEADERS], row=1)
 
     body = values[1:] if has_header else values
     existing = {row[ID_COL] for row in body if len(row) > ID_COL}
 
-    new_rows = [job_to_row(job, result) for job, result in entries if job.uid not in existing]
+    new_rows = [
+        job_to_row(job, result, table, home_city)
+        for job, result in entries
+        if job.uid not in existing
+    ]
     if new_rows:
         ws.append_rows(new_rows, value_input_option="RAW")
     return len(new_rows)
@@ -87,7 +115,7 @@ def style_sheet(ws: gspread.Worksheet) -> None:
     sheet_id = ws.id
     columns = len(HEADERS)
     etapas = chr(ord("A") + ETAPAS_COL)
-    ws.format(f"{etapas}2:{etapas}", {"numberFormat": {"type": "TEXT"}})  # "1/7" não vira data
+    ws.format(f"{etapas}2:{etapas}", {"numberFormat": {"type": "TEXT"}})
 
     requests: list[dict] = [
         {
