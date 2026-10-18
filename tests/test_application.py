@@ -69,3 +69,4 @@ def test_prompt_includes_motivation_and_bans_cliches():
     prompt = build_prompt(make_job(), PROFILE, BANK)
     assert "Motivação para buscar estágio" in prompt
     assert "contribuindo" in prompt  # lista de frases proibidas
+    assert "Se nenhuma história sustenta um valor" in prompt

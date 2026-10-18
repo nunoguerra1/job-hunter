@@ -42,11 +42,18 @@ RULES = """REGRAS GERAIS
 REGRAS DO why_us (3 parágrafos, 900 a 1.100 caracteres no total)
 1. Gancho: um desafio, produto ou atividade ESPECÍFICA da vaga, ligado a algo concreto que o
    candidato já fez. Não elogie a empresa e não parafraseie o marketing dela.
-2. Prova: no máximo 2 valores, cada um sustentado por uma história (o que fez e o resultado).
-   Não cite um valor sem prová-lo. Se o candidato tem experiência de liderança e se candidata
-   a estágio, explique em uma frase o motivo, usando a MOTIVAÇÃO informada.
-3. Fechamento: 1 ou 2 entregas concretas que ele pode fazer nos primeiros meses, tiradas das
-   atividades da vaga, sem afirmar habilidades que o candidato não tem.
+2. Prova: no máximo 2 valores, cada um sustentado por uma história que REALMENTE o demonstre:
+   inovação = projetos próprios, uso de IA, tecnologias novas; qualidade = testes e
+   padronização; respeito às pessoas = capacitação e seleção; senso de dono = liderança e
+   entrega ponta a ponta. Se nenhuma história sustenta um valor, NÃO cite esse valor.
+   Cada valor vem com o que o candidato fez e o resultado, sem frases como "sustento o
+   valor de".
+3. Motivação: explique em uma frase, com palavras próprias e como ESCOLHA (quer estar no
+   código, em um time de produto, e leva a visão de gestão como diferencial). Nunca de forma
+   defensiva, sem "mesmo já tendo" nem pedidos de desculpa.
+4. Fechamento: 1 ou 2 entregas dos primeiros meses, só com atividades que aparecem na vaga
+   E que o candidato comprovadamente já fez nas histórias ou no perfil. Não prometa
+   documentação nem outras tarefas sem base.
 
 PROIBIDO: "ambiente ideal", "reflete a visão que busco", "perfeitamente", "contribuindo
 ativamente", "de forma autônoma", "líder do mercado", "sempre sonhei", "empresa de renome"
