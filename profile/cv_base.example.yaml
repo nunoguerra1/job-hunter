@@ -1,0 +1,66 @@
+name: "Nuno Guerra"
+title: "Desenvolvedor Full-Stack"
+contacts:
+  - "PREENCHER: telefone"
+  - "PREENCHER: e-mail"
+  - "PREENCHER: LinkedIn"
+  - "PREENCHER: GitHub"
+
+summary: "Estudante de Análise e Desenvolvimento de Sistemas e Gerente de Desenvolvimento na Unect Jr., onde saí de Assessor a gestor de uma equipe de 8 pessoas em menos de um ano. Construí dois sistemas de gestão ponta a ponta com React, Next.js e NestJS antes de assumir a liderança técnica da subdiretoria. Busco estágio em desenvolvimento full-stack para aplicar essa combinação de código e gestão em produtos reais."
+
+experience:
+  - company: "Unect Jr."
+    role: "Gerente de Desenvolvimento"
+    period: "Junho 2026 – Atual"
+    bullets:
+      - id: h-lideranca
+        text: "Liderança de subdiretoria com 8 pessoas, conduzindo planejamento estratégico e definição de OKRs e KRs para a equipe"
+      - id: h-capacitacao-rn
+        text: "Estruturação de capacitação técnica em React Native, com 6 módulos aplicados a 3 desenvolvedores(as) front-end do time"
+      - id: h-capacitacao-fs
+        text: "Liderança da reestruturação do programa de capacitação Full Stack, redesenhando conteúdo para os 8 assessores da subdiretoria"
+      - id: h-engenharia
+        text: "Padronização de práticas de engenharia: testes automatizados (E2E e unitários) com Husky, arquitetura modular feature-driven e boilerplate oficial para novos sistemas da empresa"
+  - company: "Unect Jr."
+    role: "Assessor de Desenvolvimento"
+    period: "Setembro 2025 – Junho 2026"
+    bullets:
+      - id: h-clinicas
+        text: "Desenvolvimento end-to-end de dois sistemas completos de gestão para clínicas, participando de todo o ciclo de engenharia de software"
+      - text: "Construção de interfaces responsivas com React, Next.js, TypeScript e Tailwind CSS, integradas a APIs REST desenvolvidas com NestJS"
+      - text: "Modelagem e gerenciamento de bancos de dados (PostgreSQL, MongoDB, MySQL) com TypeORM e Docker; versionamento avançado com Git/GitHub"
+      - id: h-selecao
+        text: "Membro da Comissão Avaliativa do Processo Seletivo, conduzindo entrevistas técnicas e culturais para seleção de novos membros"
+
+projects:
+  - name: "Aqua Adopt"
+    subtitle: "Plataforma Full Stack de Monitoramento e Conservação Marinha"
+    links: ["github.com/nunoguerra1/aqua-adopt", "aqua-adopt-8zmy.vercel.app"]
+    bullets:
+      - id: h-aqua
+        text: "Plataforma Full Stack com Next.js App Router, TypeScript, Prisma ORM, PostgreSQL e Supabase, com deploy na Vercel"
+      - text: "Mapa interativo com Leaflet para monitoramento de rotas migratórias e background 3D imersivo com React Three Fiber (Three.js)"
+      - text: "Performance otimizada via Server Components e Server Actions, eliminando APIs REST tradicionais e aumentando segurança e coesão"
+  - name: "Impact Scroll"
+    subtitle: "Plataforma de Bem-Estar Digital com Gamificação de Impacto Ambiental"
+    links: ["github.com/nunoguerra1/smart-scroll-impact", "impact-scroll-delta.vercel.app"]
+    bullets:
+      - id: h-impact
+        text: "Gamificação de bem-estar digital: cada 100 pontos conquistados na plataforma equivalem a uma árvore plantada, via simulação de API de uma ONG parceira"
+      - text: "Integração de busca com IA para descobertas de conteúdo mais inteligentes, com frontend em Next.js, TypeScript e Framer Motion"
+      - text: "Backend com NestJS, TypeORM e PostgreSQL e autenticação OAuth2 (Google/GitHub) via JWT e Refresh Tokens; deploy na Vercel e Render"
+
+education:
+  course: "Análise e Desenvolvimento de Sistemas"
+  period: "2024 – 2027"
+  school: "UTFPR"
+  certifications:
+    - "Prompting Responsável: Maximizar a IA no seu Negócio – Microsoft (8h, 2026)"
+
+skills:
+  Front-end: [React, Next.js, React Three Fiber, Leaflet, Framer Motion, JavaScript, TypeScript, HTML5, CSS3, Tailwind CSS]
+  Back-end: [NestJS, Node.js, TypeORM, Prisma ORM, APIs REST, OAuth2, JWT]
+  Banco de Dados: [PostgreSQL, MongoDB, MySQL, Supabase]
+  Qualidade & DevOps: [Git & GitHub, Docker, Husky, Testes E2E & Unitários, Vercel, Render]
+  Ferramentas & Metodologias: [VS Code, Figma, Insomnia, Postman, MySQL Workbench, Scrum, Kanban, OKRs]
+  Idiomas: [Inglês – Avançado (C1)]
