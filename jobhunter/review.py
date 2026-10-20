@@ -76,11 +76,12 @@ class Reviewer:
     def handle(self, update: dict) -> None:
         query = update.get("callback_query")
         if query:
-            if query["message"]["chat"]["id"] != self.chat_id:
+            message = query.get("message")
+            if not message or message["chat"]["id"] != self.chat_id:
                 return  # ignora qualquer pessoa que não seja você
             self.tg.answer_callback(query["id"])
             action, _, uid = query["data"].partition(":")
-            message_id = query["message"]["message_id"]
+            message_id = message["message_id"]
             if action == "approve":
                 self._decide(uid, APPROVED, "✅ Aprovada", message_id)
             elif action == "discard":
