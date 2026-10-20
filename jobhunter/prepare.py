@@ -4,10 +4,13 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from google.genai import errors
+from playwright.sync_api import Error as PlaywrightError
 
 from jobhunter.application import prepare_application, render_markdown
+from jobhunter.cv import load_cv
 from jobhunter.filters import prefilter
 from jobhunter.llm import GeminiClient, QuotaExhaustedError
+from jobhunter.make_cv import build_pdf
 from jobhunter.profile import load_profile
 from jobhunter.storage import JobStore
 from jobhunter.stories import load_story_bank
@@ -28,6 +31,11 @@ def main(target: str = "3") -> None:
     except (FileNotFoundError, ValueError) as error:
         print(f"Banco de histórias indisponível: {error}")
         return
+    try:
+        cv = load_cv()
+    except (FileNotFoundError, ValueError) as error:
+        print(f"Currículo-base indisponível (as candidaturas saem sem PDF): {error}")
+        cv = None
     store = JobStore()
     scores = store.scores()
     jobs = {job.uid: job for job in store.all()}
@@ -67,6 +75,11 @@ def main(target: str = "3") -> None:
         markdown = render_markdown(job, scores.get(job.uid), application)
         (path / "candidatura.md").write_text(markdown, encoding="utf-8")
         (path / "draft.json").write_text(application.model_dump_json(indent=2), encoding="utf-8")
+        if cv:
+            try:
+                build_pdf(path, cv)
+            except PlaywrightError as error:
+                print(f"  PDF não gerado ({error}); rode 'python -m jobhunter.make_cv' depois.")
         print(f"Preparada: {job.title} | {job.company} -> {path}")
         time.sleep(5)
 
