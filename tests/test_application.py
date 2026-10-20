@@ -32,6 +32,7 @@ def test_prepare_drops_unknown_ids():
     app = prepare_application(make_job(), PROFILE, BANK, FakeLLM())
     assert app.story_ids == ["lideranca-dev"]
     assert len(app.cv_highlights) == 1
+    assert app.cv_highlight_ids == ["h-lideranca"]
 
 
 def test_salary_answer_uses_job_salary():

@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from jobhunter.extract import extract_salary
 from jobhunter.filters import normalize
@@ -23,6 +23,7 @@ class Application(BaseModel):
     why_us: str
     cv_summary: str
     cv_highlights: list[str]
+    cv_highlight_ids: list[str] = Field(default_factory=list)
     salary_answer: str
 
 
@@ -110,14 +111,20 @@ def salary_answer(job: Job, profile: Profile) -> str:
 def prepare_application(job: Job, profile: Profile, bank: StoryBank, llm: LLM) -> Application:
     draft = llm.generate_json(build_prompt(job, profile, bank), Draft)
     known_stories = {story.id for story in bank.stories}
-    highlights = {h.id: h.text for h in bank.cv_highlights}
-    chosen = [highlights[i] for i in draft.cv_highlight_ids if i in highlights]
+    
+    # Cria um dicionário mapeando o ID do highlight para o texto correspondente
+    highlights_map = {h.id: h.text for h in bank.cv_highlights}
+    
+    highlight_ids = [i for i in draft.cv_highlight_ids if i in highlights_map]
+    chosen = [highlights_map[i] for i in highlight_ids]
+    
     return Application(
         company_values=draft.company_values,
         story_ids=[i for i in draft.story_ids if i in known_stories],
         why_us=draft.why_us,
         cv_summary=draft.cv_summary,
-        cv_highlights=chosen or list(highlights.values())[:5],
+        cv_highlights=chosen or list(highlights_map.values())[:5],
+        cv_highlight_ids=highlight_ids,
         salary_answer=salary_answer(job, profile),
     )
 
@@ -126,13 +133,17 @@ def render_markdown(job: Job, result: MatchResult | None, app: Application) -> s
     values = ", ".join(app.company_values) or "não identificados na descrição"
     highlights = "\n".join(f"- {text}" for text in app.cv_highlights)
     score = f"{result.score}/100 - {result.summary}" if result else "sem nota"
-    return f"""# {job.title} - {job.company}
+    return f"""# {job.title}
+{job.company}
 
 > RASCUNHO gerado por IA. Revise tudo antes de enviar.
 
-- Link: {job.url}
-- Nota de match: {score}
-- Valores identificados: {values}
+- Link: 
+{job.url}
+- Nota de match: 
+{score}
+- Valores identificados: 
+{values}
 
 ## Por que você quer trabalhar conosco?
 
