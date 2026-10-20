@@ -50,9 +50,12 @@ class Reviewer:
     def _job(self, uid: str) -> Job | None:
         return next((job for job in self.store.all() if job.uid == uid), None)
 
-    def send_review(self, job: Job) -> None:
+    def send_review(self, job: Job, with_cv: bool = True) -> None:
         app = self._load(job.uid)
         result = self.store.scores().get(job.uid)
+        pdf = self._draft_path(job.uid).with_name("curriculo.pdf")
+        if with_cv and pdf.exists():  # o PDF vai antes, para os botões ficarem no fim da conversa
+            self.tg.send_document(self.chat_id, pdf, "Currículo desta candidatura")
         self.tg.send_message(self.chat_id, format_review(job, result, app), review_buttons(job.uid))
 
     def notify_pending(self) -> int:
@@ -111,4 +114,4 @@ class Reviewer:
             self._save(uid, app)
         job = self._job(uid)
         if job:
-            self.send_review(job)
+            self.send_review(job, with_cv=False)

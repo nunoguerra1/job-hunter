@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import httpx
 from dotenv import load_dotenv
@@ -11,8 +12,7 @@ class TelegramClient:
         self.token = token or os.environ["TELEGRAM_BOT_TOKEN"]
         self.http = client or httpx.Client(timeout=45)
 
-    def _call(self, method: str, **payload):
-        response = self.http.post(f"{API}/bot{self.token}/{method}", json=payload)
+    def _check(self, response: httpx.Response, method: str):
         try:
             response.raise_for_status()
         except httpx.HTTPStatusError as error:
@@ -21,6 +21,19 @@ class TelegramClient:
                 f"Telegram '{method}' falhou com HTTP {error.response.status_code}"
             ) from None
         return response.json()["result"]
+
+    def _call(self, method: str, **payload):
+        response = self.http.post(f"{API}/bot{self.token}/{method}", json=payload)
+        return self._check(response, method)
+
+    def send_document(self, chat_id: int, path: Path, caption: str = "") -> None:
+        with path.open("rb") as file:
+            response = self.http.post(
+                f"{API}/bot{self.token}/sendDocument",
+                data={"chat_id": chat_id, "caption": caption[:1000]},
+                files={"document": (path.name, file, "application/pdf")},
+            )
+        self._check(response, "sendDocument")
 
     def send_message(self, chat_id: int, text: str, buttons: list | None = None):
         payload: dict = {

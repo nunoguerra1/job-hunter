@@ -10,6 +10,7 @@ class FakeTG:
         self.sent = []
         self.answered = []
         self.cleared = []
+        self.docs = []
 
     def send_message(self, chat_id, text, buttons=None):
         self.sent.append((chat_id, text, buttons))
@@ -19,6 +20,9 @@ class FakeTG:
 
     def clear_buttons(self, chat_id, message_id):
         self.cleared.append(message_id)
+
+    def send_document(self, chat_id, path, caption=""):
+        self.docs.append(path.name)
 
 
 def setup(tmp_path):
@@ -83,3 +87,12 @@ def test_edit_flow_replaces_text_and_resends(tmp_path):
     assert saved.why_us == "novo texto"
     assert "novo texto" in tg.sent[-1][1]
     assert store.statuses()["t:1"] == "awaiting"
+
+def test_review_sends_cv_pdf_before_message(tmp_path):
+    reviewer, tg, store = setup(tmp_path)
+    (tmp_path / "t_1" / "curriculo.pdf").write_bytes(b"%PDF")
+
+    reviewer.notify_pending()
+
+    assert tg.docs == ["curriculo.pdf"]
+    assert len(tg.sent) == 1
