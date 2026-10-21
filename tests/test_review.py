@@ -96,3 +96,11 @@ def test_review_sends_cv_pdf_before_message(tmp_path):
 
     assert tg.docs == ["curriculo.pdf"]
     assert len(tg.sent) == 1
+
+def test_resend_sends_again_even_if_already_notified(tmp_path):
+    reviewer, tg, store = setup(tmp_path)
+    reviewer.notify_pending()
+
+    assert reviewer.resend("t:1")
+    assert len(tg.sent) == 2
+    assert not reviewer.resend("t:404")

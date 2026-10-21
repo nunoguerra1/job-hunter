@@ -21,13 +21,16 @@ def process(reviewer, update: dict) -> None:
         print(f"  ERRO ao processar ({type(error).__name__}): {error}")
 
 
-def main(notify_only: bool = False) -> None:
+def main(notify_only: bool = False, resend: str | None = None) -> None:
     load_dotenv()
     reviewer = Reviewer(
         tg=TelegramClient(),
         store=JobStore(),
         chat_id=int(os.environ["TELEGRAM_CHAT_ID"]),
     )
+    if resend:
+        ok = reviewer.resend(resend)
+        print(f"Reenviada: {resend}" if ok else f"Sem rascunho preparado para '{resend}'.")
     sent = reviewer.notify_pending()
     print(f"{sent} candidaturas enviadas para revisão.")
     if notify_only:
@@ -54,4 +57,6 @@ def main(notify_only: bool = False) -> None:
 
 
 if __name__ == "__main__":
-    main(notify_only="--notify-only" in sys.argv)
+    args = sys.argv[1:]
+    target = args[args.index("--resend") + 1] if "--resend" in args[:-1] else None
+    main(notify_only="--notify-only" in args, resend=target)

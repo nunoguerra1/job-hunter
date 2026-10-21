@@ -70,6 +70,15 @@ class Reviewer:
             sent += 1
         return sent
 
+    def resend(self, uid: str) -> bool:
+        """Reenvia uma candidatura já preparada, mesmo que ela já tenha sido notificada."""
+        job = self._job(uid)
+        if not job or not self._draft_path(uid).exists():
+            return False
+        self.send_review(job)
+        self.store.set_status(uid, AWAITING)
+        return True
+
     def _decide(self, uid: str, status: str, label: str, message_id: int) -> None:
         self.store.set_status(uid, status)
         self.tg.clear_buttons(self.chat_id, message_id)
