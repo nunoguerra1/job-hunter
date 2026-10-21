@@ -1,6 +1,7 @@
 import sys
 
 from jobhunter.browser import persistent_browser
+from jobhunter.forms import capture, save_snapshot
 from jobhunter.models import Job
 from jobhunter.review import APPLIED, APPROVED
 from jobhunter.storage import JobStore
@@ -37,6 +38,24 @@ def mark_applied(store: JobStore, uid: str) -> None:
     store.set_status(uid, APPLIED)
     print(f"Marcada como enviada: {uid}")
 
+def inspect_form(store: JobStore, uid: str) -> None:
+    job = next((j for j in store.all() if j.uid == uid), None)
+    if not job:
+        print(f"Vaga '{uid}' não encontrada.")
+        return
+    with persistent_browser() as context:
+        page = context.pages[0] if context.pages else context.new_page()
+        page.goto(job.url)
+        print("Navegue pela candidatura. Em cada etapa, volte aqui e aperte Enter para capturar.")
+        print("Para este teste, pare ANTES do botão final de envio.")
+        step = 1
+        while True:
+            answer = input(f"Etapa {step}: Enter captura a tela atual, 'q' encerra: ").strip()
+            if answer.lower() == "q":
+                break
+            current = context.pages[-1]  # a Gupy pode abrir a candidatura em outra aba
+            print(f"  capturado: {save_snapshot(capture(current), uid, step)}")
+            step += 1
 
 def main(argv: list[str]) -> None:
     command = argv[0] if argv else ""
@@ -46,8 +65,10 @@ def main(argv: list[str]) -> None:
         list_approved(JobStore())
     elif command == "mark" and len(argv) > 1:
         mark_applied(JobStore(), argv[1])
+    elif command == "inspect" and len(argv) > 1:
+        inspect_form(JobStore(), argv[1])
     else:
-        print("Uso: python -m jobhunter.apply [login | list | mark <id>]")
+        print("Uso: python -m jobhunter.apply [login | list | mark <id> | inspect <id>]")
 
 
 if __name__ == "__main__":
