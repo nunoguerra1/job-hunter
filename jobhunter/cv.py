@@ -4,8 +4,6 @@ import yaml
 from pydantic import BaseModel, Field, model_validator
 
 PLACEHOLDER = "PREENCHER"
-MAX_EXPERIENCE_BULLETS = 4
-MAX_PROJECT_BULLETS = 3
 
 
 class Bullet(BaseModel):
