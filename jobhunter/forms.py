@@ -20,24 +20,101 @@ FIELDS_JS = """
     if (wrap) return wrap.innerText.trim();
     return (el.placeholder || '').trim();
   };
-  const fields = [...document.querySelectorAll('input, textarea, select')]
-    .filter(el => el.type !== 'hidden' && visible(el))
-    .map(el => ({
-      tag: el.tagName.toLowerCase(),
-      type: el.type || '',
-      name: el.name || '',
-      id: el.id || '',
-      label: labelFor(el).slice(0, 200),
-      required: el.required || el.getAttribute('aria-required') === 'true',
-      options: el.tagName === 'SELECT'
-        ? [...el.options].map(o => o.text.trim()).slice(0, 30) : []
-    }));
+  const inputs = [...document.querySelectorAll('input, textarea, select')]
+    .filter(el => el.type !== 'hidden' && visible(el));
+  const keyOf = el => (el.type === 'checkbox' ? el.name.replace(/-\\d+$/, '') : el.name)
+    || el.id || ('idx' + inputs.indexOf(el));
+
+  const commonAncestor = els => {
+    let node = els[0].parentElement;
+    while (node && !els.every(e => node.contains(e))) node = node.parentElement;
+    return node;
+  };
+  const otherInputs = (node, key) =>
+    inputs.filter(i => node.contains(i) && keyOf(i) !== key).length;
+  // Sobe do grupo de opções até o bloco que contém SÓ essa pergunta (o enunciado fica nele).
+  const blockOf = (els, key) => {
+    let node = commonAncestor(els);
+    while (node && node.parentElement && node.parentElement !== document.body
+           && otherInputs(node.parentElement, key) === 0
+           && node.parentElement.innerText.length < 700) {
+      node = node.parentElement;
+    }
+    return node;
+  };
+  const onlyLabels = (line, labels) => {
+    const sorted = labels.filter(Boolean).sort((a, b) => b.length - a.length);
+    let rest = line;
+    let progressed = true;
+    while (rest && progressed) {
+      progressed = false;
+      for (const label of sorted) {
+        if (rest.startsWith(label)) {
+          rest = rest.slice(label.length).trim();
+          progressed = true;
+          break;
+        }
+      }
+    }
+    return rest === '';
+  };
+  const questionText = (els, key, labels) => {
+    const block = blockOf(els, key);
+    const lines = (block ? block.innerText : '').split('\\n').map(s => s.trim())
+      .filter(Boolean).filter(line => !onlyLabels(line, labels));
+    return lines.slice(0, 3).join(' | ').slice(0, 400);
+  };
+  const isRequired = els =>
+    els.some(e => e.required || e.getAttribute('aria-required') === 'true');
+
+  const fields = inputs.map(el => ({
+    tag: el.tagName.toLowerCase(),
+    type: el.type || '',
+    name: el.name || '',
+    id: el.id || '',
+    label: labelFor(el).slice(0, 200),
+    required: isRequired([el]),
+    options: el.tagName === 'SELECT'
+      ? [...el.options].map(o => o.text.trim()).slice(0, 30) : []
+  }));
+
+  const groups = new Map();
+  inputs.filter(el => el.type === 'radio' || el.type === 'checkbox').forEach(el => {
+    const key = keyOf(el);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(el);
+  });
+  const questions = [...groups.entries()].map(([key, els]) => {
+    const labels = els.map(labelFor);
+    return {
+      key,
+      kind: els[0].type === 'radio' ? 'single' : 'multi',
+      question: questionText(els, key, labels),
+      options: labels,
+      required: isRequired(els)
+    };
+  });
+  inputs.filter(el => !['radio', 'checkbox', 'file', 'button', 'submit'].includes(el.type))
+    .forEach(el => {
+      const key = keyOf(el);
+      const label = labelFor(el);
+      const named = el.name && el.name.length > 25 ? el.name : '';
+      questions.push({
+        key,
+        kind: el.tagName === 'SELECT' ? 'select' : 'text',
+        question: named || questionText([el], key, [label]),
+        options: el.tagName === 'SELECT'
+          ? [...el.options].map(o => o.text.trim()).slice(0, 30) : [],
+        required: isRequired([el])
+      });
+    });
+
   const buttons = [...document.querySelectorAll('button, a[role=button], [type=submit]')]
     .filter(visible)
     .map(b => (b.innerText || b.value || '').trim())
     .filter(Boolean)
     .slice(0, 30);
-  return {url: location.href, title: document.title, fields, buttons};
+  return {url: location.href, title: document.title, fields, questions, buttons};
 }
 """
 
