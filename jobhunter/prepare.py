@@ -8,7 +8,7 @@ from playwright.sync_api import Error as PlaywrightError
 
 from jobhunter.application import prepare_application, render_markdown
 from jobhunter.cv import load_cv
-from jobhunter.filters import prefilter
+from jobhunter.filters import is_open, prefilter
 from jobhunter.llm import GeminiClient, QuotaExhaustedError
 from jobhunter.make_cv import build_pdf
 from jobhunter.profile import load_profile
@@ -42,6 +42,9 @@ def main(target: str = "3") -> None:
 
     if ":" in target:  # um id específico, ex.: gupy:12511466
         selected = [jobs[target]] if target in jobs else []
+        if selected and not is_open(selected[0]):
+            print(f"A vaga {target} já encerrou (prazo {selected[0].deadline:%d/%m/%Y}).")
+            return
     else:  # as N melhores ainda sem candidatura preparada
         eligible = [
             job

@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from jobhunter.filters import prefilter
+from jobhunter.filters import is_open, prefilter
 from jobhunter.models import Job
 from jobhunter.profile import load_profile
 
@@ -44,3 +44,8 @@ def test_keeps_by_description_skills():
     job = make_job("Estágio no time de Produto", description="Stack: Python, React e SQL")
     result = prefilter(job, PROFILE, TODAY)
     assert result.keep and "descrição" in result.area
+
+def test_is_open_compares_with_deadline():
+    assert not is_open(make_job("x", deadline=datetime(2026, 10, 14)), TODAY)
+    assert is_open(make_job("x", deadline=datetime(2026, 10, 15)), TODAY)
+    assert is_open(make_job("x"), TODAY)  # sem prazo informado

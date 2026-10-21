@@ -27,6 +27,10 @@ def normalize(text: str) -> str:
 def _contains(text: str, term: str) -> bool:
     return re.search(rf"\b{re.escape(normalize(term))}\b", text) is not None
 
+def is_open(job: Job, today: date | None = None) -> bool:
+    """Falso quando o prazo de inscrição já passou. Sem prazo informado, presume aberta."""
+    today = today or date.today()
+    return not (job.deadline and job.deadline.date() < today)
 
 def prefilter(job: Job, profile: Profile, today: date | None = None) -> FilterResult:
     today = today or date.today()
@@ -34,7 +38,7 @@ def prefilter(job: Job, profile: Profile, today: date | None = None) -> FilterRe
 
     if job.pcd:
         return FilterResult(False, "vaga PcD")
-    if job.deadline and job.deadline.date() < today:
+    if not is_open(job, today):
         return FilterResult(False, "prazo vencido")
     if job.modality != Modality.UNKNOWN and job.modality not in profile.modalities:
         return FilterResult(False, "modalidade não aceita")

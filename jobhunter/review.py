@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from jobhunter.application import Application
+from jobhunter.filters import is_open
 from jobhunter.match import MatchResult
 from jobhunter.models import Job
 from jobhunter.storage import JobStore
@@ -11,6 +12,8 @@ AWAITING = "awaiting"
 APPROVED = "approved"
 DISCARDED = "discarded"
 APPLIED = "applied"
+EXPIRED = "expired"
+CLOSED = "closed"
 
 
 def format_review(job: Job, result: MatchResult | None, app: Application) -> str:
@@ -66,6 +69,9 @@ class Reviewer:
         for job in self.store.all():
             if job.uid in statuses or not self._draft_path(job.uid).exists():
                 continue
+            if not is_open(job):
+                self.store.set_status(job.uid, EXPIRED)  # prazo vencido: nem vai para revisão
+                continue
             self.send_review(job)
             self.store.set_status(job.uid, AWAITING)
             sent += 1
@@ -74,7 +80,7 @@ class Reviewer:
     def resend(self, uid: str) -> bool:
         """Reenvia uma candidatura já preparada, mesmo que ela já tenha sido notificada."""
         job = self._job(uid)
-        if not job or not self._draft_path(uid).exists():
+        if not job or not is_open(job) or not self._draft_path(uid).exists():
             return False
         self.send_review(job)
         self.store.set_status(uid, AWAITING)

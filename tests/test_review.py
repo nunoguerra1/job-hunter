@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from jobhunter.application import Application
 from jobhunter.match import MatchResult
 from jobhunter.models import Job, Modality
@@ -104,3 +106,17 @@ def test_resend_sends_again_even_if_already_notified(tmp_path):
     assert reviewer.resend("t:1")
     assert len(tg.sent) == 2
     assert not reviewer.resend("t:404")
+
+def test_notify_skips_and_marks_expired(tmp_path):
+    reviewer, tg, store = setup(tmp_path)
+    old = Job(source="t", external_id="2", title="Velha", company="Acme", url="https://y",
+              modality=Modality.REMOTE, deadline=datetime(2020, 1, 1))
+    store.add_new([old])
+    folder = tmp_path / "t_2"
+    folder.mkdir()
+    app = Application(company_values=[], story_ids=[], why_us="x", cv_summary="r",
+                      cv_highlights=["h"], salary_answer="A combinar")
+    (folder / "draft.json").write_text(app.model_dump_json(), encoding="utf-8")
+
+    assert reviewer.notify_pending() == 1  # só a vaga válida
+    assert store.statuses()["t:2"] == "expired"
