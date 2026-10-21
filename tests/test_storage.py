@@ -26,3 +26,9 @@ def test_status_roundtrip():
     store.set_status("t:1", "awaiting")
     store.set_status("t:1", "approved")
     assert store.statuses() == {"t:1": "approved"}
+
+def test_clear_status():
+    store = JobStore(":memory:")
+    store.set_status("t:1", "approved")
+    store.clear_status("t:1")
+    assert store.statuses() == {}

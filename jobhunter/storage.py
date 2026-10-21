@@ -78,3 +78,7 @@ class JobStore:
     def statuses(self) -> dict[str, str]:
         rows = self.conn.execute("SELECT uid, status FROM applications").fetchall()
         return dict(rows)
+
+    def clear_status(self, uid: str) -> None:
+        self.conn.execute("DELETE FROM applications WHERE uid = ?", (uid,))
+        self.conn.commit()

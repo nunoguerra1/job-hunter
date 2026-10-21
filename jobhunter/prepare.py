@@ -75,6 +75,7 @@ def main(target: str = "3") -> None:
         markdown = render_markdown(job, scores.get(job.uid), application)
         (path / "candidatura.md").write_text(markdown, encoding="utf-8")
         (path / "draft.json").write_text(application.model_dump_json(indent=2), encoding="utf-8")
+        store.clear_status(job.uid)  # rascunho novo: volta para a fila de revisão
         if cv:
             try:
                 build_pdf(path, cv)
