@@ -4,7 +4,14 @@ import pytest
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import sync_playwright
 
-from jobhunter.forms import capture, sanitize_url, save_snapshot, snapshot_path
+from jobhunter.forms import (
+    capture,
+    clean_question,
+    normalize_questions,
+    sanitize_url,
+    save_snapshot,
+    snapshot_path,
+)
 
 
 def test_sanitize_url_drops_query_and_fragment():
@@ -121,3 +128,18 @@ def test_capture_retries_after_navigation():
 def test_capture_gives_up_after_attempts():
     with pytest.raises(PlaywrightError):
         capture(FlakyPage(failures=10), attempts=3)
+
+def test_clean_question_extracts_number_and_required():
+    text, number, required = clean_question("1. Qual é a sua escolaridade atual?  *")
+
+    assert (text, number, required) == ("Qual é a sua escolaridade atual?", 1, True)
+    assert clean_question("Você tem CNH?") == ("Você tem CNH?", None, False)
+
+
+def test_normalize_questions_marks_required_and_keeps_raw():
+    items = normalize_questions([{"question": "6. Acesso à região?  *", "required": False}])
+
+    assert items[0]["question"] == "Acesso à região?"
+    assert items[0]["number"] == 6
+    assert items[0]["required"] is True
+    assert items[0]["raw"] == "6. Acesso à região?  *"

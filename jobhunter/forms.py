@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
@@ -129,6 +130,28 @@ def sanitize_url(url: str) -> str:
 def snapshot_path(uid: str, step: int, folder: Path = FORMS_DIR) -> Path:
     return folder / f"{uid.replace(':', '_')}_{step}.json"
 
+_NUMBER = re.compile(r"^\s*(\d+)\s*[.)\-]\s*")
+
+def clean_question(raw: str) -> tuple[str, int | None, bool]:
+    """Separa a numeração ('1.') e o marcador de obrigatória ('*') do enunciado."""
+    text = raw.strip()
+    required = text.endswith("*")
+    text = text.rstrip("*").strip()
+    match = _NUMBER.match(text)
+    number = int(match.group(1)) if match else None
+    if match:
+        text = text[match.end() :].strip()
+    return text, number, required
+
+
+def normalize_questions(questions: list[dict]) -> list[dict]:
+    for item in questions:
+        text, number, starred = clean_question(item["question"])
+        item["raw"] = item["question"]
+        item["question"] = text
+        item["number"] = number
+        item["required"] = bool(item.get("required")) or starred
+    return questions
 
 def capture(page: Page, attempts: int = 6) -> dict:
     """Captura a estrutura da página, esperando uma navegação em andamento terminar."""
@@ -143,6 +166,7 @@ def capture(page: Page, attempts: int = 6) -> dict:
             page.wait_for_timeout(1500)
             continue
         data["url"] = sanitize_url(data["url"])
+        normalize_questions(data.get("questions", []))
         return data
     raise last_error or RuntimeError("falha ao capturar a página")
 
