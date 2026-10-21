@@ -4,7 +4,7 @@ from jobhunter.extract import extract_salary
 from jobhunter.filters import normalize
 from jobhunter.llm import LLM
 from jobhunter.match import MatchResult, _candidate_block, _job_block
-from jobhunter.models import Job, Modality
+from jobhunter.models import Job, Level, Modality
 from jobhunter.profile import Profile
 from jobhunter.stories import StoryBank
 
@@ -99,8 +99,9 @@ def salary_answer(job: Job, profile: Profile) -> str:
     )
     if relocation:
         return "A combinar, de acordo com a faixa prevista pela empresa para o programa."
-    if profile.min_salary:
-        value = f"{profile.min_salary:,}".replace(",", ".")
+    floor = profile.min_salary_clt if job.level == Level.JUNIOR else profile.min_salary
+    if floor:
+        value = f"{floor:,}".replace(",", ".")
         return (
             f"Minha pretensão é de R$ {value} mensais, "
             "aberto a conversar conforme benefícios e carga horária."

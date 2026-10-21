@@ -20,6 +20,7 @@ class Profile(BaseModel):
     city: str
     state: str
     min_salary: int | None = None
+    min_salary_clt: int | None = None
     summary: str = ""
     motivation: str = ""
     modalities: list[Modality]

@@ -4,7 +4,7 @@ from jobhunter.application import (
     render_markdown,
     salary_answer,
 )
-from jobhunter.models import Job, Modality
+from jobhunter.models import Job, Level, Modality
 from jobhunter.profile import load_profile
 from jobhunter.stories import load_story_bank
 
@@ -71,3 +71,11 @@ def test_prompt_includes_motivation_and_bans_cliches():
     assert "Motivação para buscar estágio" in prompt
     assert "contribuindo" in prompt  # lista de frases proibidas
     assert "Se nenhuma história sustenta um valor" in prompt
+
+def test_clt_job_never_uses_internship_floor():
+    job = Job(source="t", external_id="1", title="Dev Júnior", company="c", url="u",
+              level=Level.JUNIOR, modality=Modality.REMOTE)
+
+    assert salary_answer(job, PROFILE).startswith("A combinar")
+    with_clt = PROFILE.model_copy(update={"min_salary_clt": 3500})
+    assert "R$ 3.500" in salary_answer(job, with_clt)
