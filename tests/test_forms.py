@@ -91,3 +91,33 @@ def test_capture_finds_question_text_in_nested_blocks():
         "Ensino superior cursando",
     ]
     assert by_question["Você tem CNH?"]["options"] == ["Sim", "Não"]
+
+class FlakyPage:
+    """Simula uma página em navegação: as primeiras leituras falham."""
+
+    def __init__(self, failures: int):
+        self.failures = failures
+        self.calls = 0
+
+    def wait_for_load_state(self, state, timeout):
+        pass
+
+    def wait_for_timeout(self, ms):
+        pass
+
+    def evaluate(self, script):
+        self.calls += 1
+        if self.calls <= self.failures:
+            raise PlaywrightError("Execution context was destroyed")
+        return {"url": "https://a.gupy.io/x?token=1", "fields": [], "buttons": []}
+
+
+def test_capture_retries_after_navigation():
+    data = capture(FlakyPage(failures=2))
+
+    assert data["url"] == "https://a.gupy.io/x"
+
+
+def test_capture_gives_up_after_attempts():
+    with pytest.raises(PlaywrightError):
+        capture(FlakyPage(failures=10), attempts=3)

@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
+from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page
 
 FORMS_DIR = Path("data/forms")
@@ -129,10 +130,21 @@ def snapshot_path(uid: str, step: int, folder: Path = FORMS_DIR) -> Path:
     return folder / f"{uid.replace(':', '_')}_{step}.json"
 
 
-def capture(page: Page) -> dict:
-    data = page.evaluate(FIELDS_JS)
-    data["url"] = sanitize_url(data["url"])
-    return data
+def capture(page: Page, attempts: int = 6) -> dict:
+    """Captura a estrutura da página, esperando uma navegação em andamento terminar."""
+    last_error: PlaywrightError | None = None
+    for _ in range(attempts):
+        try:
+            page.wait_for_load_state("domcontentloaded", timeout=10000)
+            page.wait_for_timeout(800)  # deixa a tela montar (a Gupy renderiza no navegador)
+            data = page.evaluate(FIELDS_JS)
+        except PlaywrightError as error:
+            last_error = error
+            page.wait_for_timeout(1500)
+            continue
+        data["url"] = sanitize_url(data["url"])
+        return data
+    raise last_error or RuntimeError("falha ao capturar a página")
 
 
 def save_snapshot(data: dict, uid: str, step: int, folder: Path = FORMS_DIR) -> Path:

@@ -96,15 +96,24 @@ def inspect_form(store: JobStore, uid: str) -> None:
             store.set_status(uid, CLOSED)
             print("Esta vaga está ENCERRADA. Marquei como 'closed' e parei.")
             return
-        print("Navegue pela candidatura. Em cada etapa, volte aqui e aperte Enter para capturar.")
-        print("Para este teste, pare ANTES do botão final de envio.")
+        print("Navegue pela candidatura. Em cada etapa, espere a tela terminar de carregar,")
+        print("volte aqui e aperte Enter para capturar. Pare ANTES do botão final de envio.")
         step = 1
         while True:
             answer = input(f"Etapa {step}: Enter captura a tela atual, 'q' encerra: ").strip()
             if answer.lower() == "q":
                 break
-            current = context.pages[-1]  # a Gupy pode abrir a candidatura em outra aba
-            print(f"  capturado: {save_snapshot(capture(current), uid, step)}")
+            open_pages = [p for p in context.pages if not p.is_closed()]
+            if not open_pages:
+                print("  nenhuma aba aberta; encerrando.")
+                break
+            try:
+                data = capture(open_pages[-1])
+            except PlaywrightError as error:
+                print(f"  não consegui capturar ({type(error).__name__}). Espere a página")
+                print("  terminar de carregar e aperte Enter de novo.")
+                continue
+            print(f"  capturado: {save_snapshot(data, uid, step)}")
             step += 1
 
 
