@@ -1,4 +1,5 @@
 import os
+from datetime import date, datetime
 from pathlib import Path
 
 import gspread
@@ -16,6 +17,9 @@ HEADERS = [
 ID_COL = HEADERS.index("ID")
 ETAPAS_COL = HEADERS.index("Etapas")
 SUMMARY_COL = HEADERS.index("Resumo da IA")
+
+STATUS_COL = HEADERS.index("Status")
+PRAZO_COL = HEADERS.index("Prazo")
 
 COLUMN_WIDTHS = {
     "Título": 320, "Empresa": 200, "Tipo de cargo": 110, "Salário": 150,
@@ -115,6 +119,24 @@ def reset_sheet(ws: gspread.Worksheet) -> None:
     ws.spreadsheet.batch_update({"requests": [
         {"updateCells": {"range": {"sheetId": ws.id}, "fields": "userEnteredFormat"}},
     ]})
+
+def mark_expired(ws: gspread.Worksheet, today: date | None = None) -> int:
+    """Marca como 'Encerrada' as linhas ainda 'Nova' cujo prazo já passou."""
+    today = today or date.today()
+    letter = chr(ord("A") + STATUS_COL)
+    updates = []
+    for number, row in enumerate(ws.get_all_values()[1:], start=2):
+        if len(row) <= max(STATUS_COL, PRAZO_COL) or row[STATUS_COL] not in {"Nova", ""}:
+            continue
+        try:
+            deadline = datetime.strptime(row[PRAZO_COL], "%d/%m/%Y").date()
+        except ValueError:
+            continue
+        if deadline < today:
+            updates.append({"range": f"{letter}{number}", "values": [["Encerrada"]]})
+    if updates:
+        ws.batch_update(updates)
+    return len(updates)
 
 def style_sheet(ws: gspread.Worksheet) -> None:
     """Cabeçalho destacado e congelado, filtros, larguras e quebra de linha no resumo."""

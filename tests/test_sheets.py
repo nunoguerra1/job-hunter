@@ -1,8 +1,8 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from jobhunter.match import MatchResult
 from jobhunter.models import Job
-from jobhunter.sheets import HEADERS, ID_COL, reset_sheet, sync
+from jobhunter.sheets import HEADERS, ID_COL, STATUS_COL, mark_expired, reset_sheet, sync
 
 
 class FakeSpreadsheet:
@@ -34,6 +34,12 @@ class FakeWorksheet:
 
     def clear(self):
         self.values = []
+
+    def batch_update(self, data):
+        for item in data:
+            column = ord(item["range"][0]) - ord("A")
+            row = int(item["range"][1:]) - 1
+            self.values[row][column] = item["values"][0][0]
 
 
 def make(external_id: str, score: int):
@@ -84,3 +90,19 @@ def test_reset_sheet_clears_values_and_formatting():
     request = ws.spreadsheet.requests[0]["updateCells"]
     assert request["fields"] == "userEnteredFormat"
     assert request["range"] == {"sheetId": 7}
+
+def test_mark_expired_marks_only_new_rows():
+    ws = FakeWorksheet()
+    sync(ws, [make("1", 90)])  # prazo 30/11/2026
+
+    assert mark_expired(ws, today=date(2026, 12, 1)) == 1
+    assert ws.values[1][STATUS_COL] == "Encerrada"
+
+
+def test_mark_expired_respects_manual_status():
+    ws = FakeWorksheet()
+    sync(ws, [make("1", 90)])
+    ws.values[1][STATUS_COL] = "Enviada"
+
+    assert mark_expired(ws, today=date(2026, 12, 1)) == 0
+    assert ws.values[1][STATUS_COL] == "Enviada"
