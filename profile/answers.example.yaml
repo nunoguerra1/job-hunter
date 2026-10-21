@@ -1,0 +1,23 @@
+# Regras de resposta automática. Uma regra vale quando TODAS as expressões de "when" aparecem
+# no enunciado (sem diferenciar acento ou maiúscula).
+# Sem regra, ou em assunto sensível (salário, mudança, localização, CNH, PcD, documentos,
+# diversidade), o campo fica em branco e marcado para você responder na tela.
+rules:
+  - when: ["escolaridade"]
+    choose: ["Ensino superior cursando"]
+
+  - when: ["estudando", "curso superior"]
+    choose: ["Sim"]
+
+  # Texto livre com o "por que nós?" gerado e aprovado no Telegram:
+  - when: ["por que", "trabalhar"]
+    text: "{why_us}"
+
+  # Ative só se for verdade (exemplos):
+  # - when: ["inteligencia artificial generativa"]
+  #   choose: ["Sim"]
+  #
+  # Para automatizar um assunto sensível você precisa assumir isso com force: true:
+  # - when: ["pretensao salarial"]
+  #   text: "{salary_answer}"
+  #   force: true
