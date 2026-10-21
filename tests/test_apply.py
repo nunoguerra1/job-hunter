@@ -1,6 +1,7 @@
 from datetime import datetime
 
-from jobhunter.apply import approved_jobs, page_is_closed
+from jobhunter.application import Application
+from jobhunter.apply import approved_jobs, draft_context, page_is_closed
 from jobhunter.models import Job
 from jobhunter.review import APPLIED, APPROVED
 from jobhunter.storage import JobStore
@@ -31,3 +32,13 @@ def test_page_is_closed():
     assert page_is_closed("Candidaturas encerradas\nEstágio em Tecnologia")
     assert page_is_closed("INSCRIÇÕES ENCERRADAS")
     assert not page_is_closed("Candidatar-se agora. Inscrições até 28/10")
+
+def test_draft_context_reads_generated_texts(tmp_path):
+    folder = tmp_path / "t_1"
+    folder.mkdir()
+    app = Application(company_values=[], story_ids=[], why_us="meu texto", cv_summary="resumo",
+                      cv_highlights=["h"], salary_answer="A combinar")
+    (folder / "draft.json").write_text(app.model_dump_json(), encoding="utf-8")
+
+    assert draft_context("t:1", tmp_path)["why_us"] == "meu texto"
+    assert draft_context("t:404", tmp_path) == {}
