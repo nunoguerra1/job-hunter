@@ -2,7 +2,15 @@ from datetime import date, datetime
 
 from jobhunter.match import MatchResult
 from jobhunter.models import Job
-from jobhunter.sheets import HEADERS, ID_COL, STATUS_COL, mark_expired, reset_sheet, sync
+from jobhunter.sheets import (
+    HEADERS,
+    ID_COL,
+    STATUS_COL,
+    mark_expired,
+    reset_sheet,
+    sync,
+    sync_statuses,
+)
 
 
 class FakeSpreadsheet:
@@ -106,3 +114,15 @@ def test_mark_expired_respects_manual_status():
 
     assert mark_expired(ws, today=date(2026, 12, 1)) == 0
     assert ws.values[1][STATUS_COL] == "Enviada"
+
+def test_sync_statuses_updates_system_labels_only():
+    ws = FakeWorksheet()
+    sync(ws, [make("1", 90), make("2", 80), make("3", 70)])
+    ws.values[3][STATUS_COL] = "Entrevista"
+
+    updated = sync_statuses(ws, {"t:1": "approved", "t:2": "applied", "t:3": "discarded"})
+
+    assert updated == 2
+    assert ws.values[1][STATUS_COL] == "Aprovada"
+    assert ws.values[2][STATUS_COL] == "Enviada"
+    assert ws.values[3][STATUS_COL] == "Entrevista"

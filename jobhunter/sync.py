@@ -5,7 +5,14 @@ from dotenv import load_dotenv
 from jobhunter.cost import load_costs
 from jobhunter.filters import prefilter
 from jobhunter.profile import load_profile
-from jobhunter.sheets import mark_expired, open_worksheet, reset_sheet, style_sheet, sync
+from jobhunter.sheets import (
+    mark_expired,
+    open_worksheet,
+    reset_sheet,
+    style_sheet,
+    sync,
+    sync_statuses,
+)
 from jobhunter.storage import JobStore
 
 MIN_SCORE = 60
@@ -30,10 +37,13 @@ def main(min_score: int = MIN_SCORE, rebuild: bool = False) -> None:
         reset_sheet(ws)
     added = sync(ws, entries, table=load_costs(), home_city=profile.city)
     expired = mark_expired(ws)
+    updated = sync_statuses(ws, store.statuses())
     style_sheet(ws)
     print(f"{len(entries)} vagas elegíveis (nota >= {min_score}); {added} novas na planilha.")
     if expired:
         print(f"{expired} vagas marcadas como Encerrada (prazo vencido).")
+    if updated:
+        print(f"{updated} status atualizados a partir das suas decisões no Telegram.")
 
 
 if __name__ == "__main__":

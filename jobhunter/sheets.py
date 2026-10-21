@@ -20,6 +20,15 @@ SUMMARY_COL = HEADERS.index("Resumo da IA")
 
 STATUS_COL = HEADERS.index("Status")
 PRAZO_COL = HEADERS.index("Prazo")
+SYSTEM_STATUSES = {"", "Nova", "Banco de talentos", "Em revisão", "Aprovada", "Descartada"}
+STATUS_LABELS = {
+    "awaiting": "Em revisão",
+    "approved": "Aprovada",
+    "discarded": "Descartada",
+    "applied": "Enviada",
+    "expired": "Encerrada",
+    "closed": "Encerrada",
+}
 
 COLUMN_WIDTHS = {
     "Título": 320, "Empresa": 200, "Tipo de cargo": 110, "Salário": 150,
@@ -134,6 +143,20 @@ def mark_expired(ws: gspread.Worksheet, today: date | None = None) -> int:
             continue
         if deadline < today:
             updates.append({"range": f"{letter}{number}", "values": [["Encerrada"]]})
+    if updates:
+        ws.batch_update(updates)
+    return len(updates)
+
+def sync_statuses(ws: gspread.Worksheet, statuses: dict[str, str]) -> int:
+    """Reflete o status do banco na planilha, sem sobrescrever o que você editou à mão."""
+    letter = chr(ord("A") + STATUS_COL)
+    updates = []
+    for number, row in enumerate(ws.get_all_values()[1:], start=2):
+        if len(row) <= max(ID_COL, STATUS_COL):
+            continue
+        label = STATUS_LABELS.get(statuses.get(row[ID_COL], ""))
+        if label and row[STATUS_COL] in SYSTEM_STATUSES and row[STATUS_COL] != label:
+            updates.append({"range": f"{letter}{number}", "values": [[label]]})
     if updates:
         ws.batch_update(updates)
     return len(updates)
