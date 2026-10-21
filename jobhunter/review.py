@@ -10,6 +10,7 @@ from jobhunter.telegram import TelegramClient
 AWAITING = "awaiting"
 APPROVED = "approved"
 DISCARDED = "discarded"
+APPLIED = "applied"
 
 
 def format_review(job: Job, result: MatchResult | None, app: Application) -> str:
