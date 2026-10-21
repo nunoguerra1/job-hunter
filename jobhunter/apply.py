@@ -1,17 +1,36 @@
 import sys
 
+from playwright.sync_api import Error as PlaywrightError
+from playwright.sync_api import Page, sync_playwright
+
 from jobhunter.browser import persistent_browser
+from jobhunter.filters import is_open
 from jobhunter.forms import capture, save_snapshot
 from jobhunter.models import Job
-from jobhunter.review import APPLIED, APPROVED
+from jobhunter.review import APPLIED, APPROVED, AWAITING, CLOSED
 from jobhunter.storage import JobStore
 
 LOGIN_URL = "https://portal.gupy.io/"
+CLOSED_MARKERS = ("inscrições encerradas", "candidaturas encerradas")
 
 
 def approved_jobs(store: JobStore) -> list[Job]:
     statuses = store.statuses()
-    return [job for job in store.all() if statuses.get(job.uid) == APPROVED]
+    return [job for job in store.all() if statuses.get(job.uid) == APPROVED and is_open(job)]
+
+
+def page_is_closed(text: str) -> bool:
+    lowered = text.lower()
+    return any(marker in lowered for marker in CLOSED_MARKERS)
+
+
+def job_is_closed(page: Page, url: str) -> bool:
+    page.goto(url, wait_until="domcontentloaded")
+    try:
+        page.wait_for_selector("h1", timeout=15000)
+    except PlaywrightError:
+        return False  # não deu para ler a página: não presume encerrada
+    return page_is_closed(page.inner_text("body"))
 
 
 def login() -> None:
@@ -28,7 +47,8 @@ def list_approved(store: JobStore) -> None:
         print("Nenhuma candidatura aprovada aguardando envio.")
         return
     for job in jobs:
-        print(f"{job.uid} | {job.title} | {job.company}\n    {job.url}")
+        prazo = f"{job.deadline:%d/%m/%Y}" if job.deadline else "sem prazo"
+        print(f"{job.uid} | {job.title} | {job.company} | prazo {prazo}\n    {job.url}")
 
 
 def mark_applied(store: JobStore, uid: str) -> None:
@@ -38,6 +58,33 @@ def mark_applied(store: JobStore, uid: str) -> None:
     store.set_status(uid, APPLIED)
     print(f"Marcada como enviada: {uid}")
 
+
+def check_open(store: JobStore) -> None:
+    """Visita as vagas em revisão ou aprovadas e marca como 'closed' as já encerradas."""
+    statuses = store.statuses()
+    jobs = [job for job in store.all() if statuses.get(job.uid) in {AWAITING, APPROVED}]
+    if not jobs:
+        print("Nada para verificar.")
+        return
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        try:
+            page = browser.new_page()
+            for job in jobs:
+                try:
+                    closed = job_is_closed(page, job.url)
+                except PlaywrightError as error:
+                    print(f"não foi possível verificar: {job.title} ({type(error).__name__})")
+                    continue
+                if closed:
+                    store.set_status(job.uid, CLOSED)
+                    print(f"ENCERRADA: {job.title} | {job.company}")
+                else:
+                    print(f"aberta: {job.title} | {job.company}")
+        finally:
+            browser.close()
+
+
 def inspect_form(store: JobStore, uid: str) -> None:
     job = next((j for j in store.all() if j.uid == uid), None)
     if not job:
@@ -45,7 +92,10 @@ def inspect_form(store: JobStore, uid: str) -> None:
         return
     with persistent_browser() as context:
         page = context.pages[0] if context.pages else context.new_page()
-        page.goto(job.url)
+        if job_is_closed(page, job.url):
+            store.set_status(uid, CLOSED)
+            print("Esta vaga está ENCERRADA. Marquei como 'closed' e parei.")
+            return
         print("Navegue pela candidatura. Em cada etapa, volte aqui e aperte Enter para capturar.")
         print("Para este teste, pare ANTES do botão final de envio.")
         step = 1
@@ -57,18 +107,21 @@ def inspect_form(store: JobStore, uid: str) -> None:
             print(f"  capturado: {save_snapshot(capture(current), uid, step)}")
             step += 1
 
+
 def main(argv: list[str]) -> None:
     command = argv[0] if argv else ""
     if command == "login":
         login()
     elif command == "list":
         list_approved(JobStore())
+    elif command == "check":
+        check_open(JobStore())
     elif command == "mark" and len(argv) > 1:
         mark_applied(JobStore(), argv[1])
     elif command == "inspect" and len(argv) > 1:
         inspect_form(JobStore(), argv[1])
     else:
-        print("Uso: python -m jobhunter.apply [login | list | mark <id> | inspect <id>]")
+        print("Uso: python -m jobhunter.apply [login | list | check | mark <id> | inspect <id>]")
 
 
 if __name__ == "__main__":
