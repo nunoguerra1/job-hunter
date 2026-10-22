@@ -6,6 +6,7 @@ import gspread
 
 from jobhunter.cost import CostTable, brl, estimate
 from jobhunter.extract import extract_benefits, extract_salary
+from jobhunter.filters import normalize
 from jobhunter.match import MatchResult
 from jobhunter.models import Job
 
@@ -14,6 +15,11 @@ HEADERS = [
     "Custo de vida/mês", "Sobra estimada", "Nota", "Resumo da IA", "Publicada", "Prazo",
     "Etapas", "Status", "Link", "ID",
 ]
+MAIL_HEADERS = [
+    "Data", "Situação", "Empresa/remetente (estimado)", "Assunto", "Vaga na planilha",
+    "ID do e-mail",
+]
+MAIL_ID_COL = MAIL_HEADERS.index("ID do e-mail")
 ID_COL = HEADERS.index("ID")
 ETAPAS_COL = HEADERS.index("Etapas")
 SUMMARY_COL = HEADERS.index("Resumo da IA")
@@ -161,6 +167,38 @@ def sync_statuses(ws: gspread.Worksheet, statuses: dict[str, str]) -> int:
     if updates:
         ws.batch_update(updates)
     return len(updates)
+
+def match_job(company: str, subject: str, jobs: list[Job]) -> str:
+    """UID da vaga cuja empresa aparece no e-mail; vazio se for ambíguo ou não houver."""
+    haystack = normalize(f"{company} {subject}")
+    matches = {
+        job.uid for job in jobs
+        if len(normalize(job.company)) >= 5 and normalize(job.company) in haystack
+    }
+    return next(iter(matches)) if len(matches) == 1 else ""
+
+
+def sync_mail(ws: gspread.Worksheet, emails: list[dict], jobs: list[Job]) -> int:
+    """Acrescenta só os e-mails novos na aba de candidaturas, sem mexer nas linhas antigas."""
+    values = ws.get_all_values()
+    if not values or values[0] != MAIL_HEADERS:
+        ws.update(range_name="A1", values=[MAIL_HEADERS])
+    existing = {row[MAIL_ID_COL] for row in values[1:] if len(row) > MAIL_ID_COL}
+    rows = [
+        [
+            f"{datetime.fromisoformat(email['sent_at']):%d/%m/%Y}",
+            email["kind"],
+            email["company"] or email["sender"],
+            email["subject"],
+            match_job(email["company"], email["subject"], jobs),
+            email["id"],
+        ]
+        for email in emails
+        if email["id"] not in existing
+    ]
+    if rows:
+        ws.append_rows(rows, value_input_option="RAW")
+    return len(rows)
 
 def style_sheet(ws: gspread.Worksheet) -> None:
     """Cabeçalho destacado e congelado, filtros, larguras e quebra de linha no resumo."""

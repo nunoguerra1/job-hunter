@@ -5,11 +5,14 @@ from jobhunter.models import Job
 from jobhunter.sheets import (
     HEADERS,
     ID_COL,
+    MAIL_HEADERS,
     STATUS_COL,
     job_to_row,
     mark_expired,
+    match_job,
     reset_sheet,
     sync,
+    sync_mail,
     sync_statuses,
 )
 
@@ -132,3 +135,28 @@ def test_row_includes_publication_date():
     job, result = make("1", 90)
 
     assert job_to_row(job, result)[HEADERS.index("Publicada")] == "01/10/2026"
+
+def test_match_job_requires_a_single_company_match():
+    jobs = [
+        Job(source="t", external_id="1", title="Dev", company="Vendemmia Logística Integrada",
+            url="u"),
+        Job(source="t", external_id="2", title="QA", company="Michelin", url="u"),
+        Job(source="t", external_id="3", title="Dev", company="Michelin", url="u"),
+    ]
+
+    assert match_job("Vendemmia Logística Integrada", "Inscrição recebida", jobs) == "t:1"
+    assert match_job("Michelin", "x", jobs) == ""  # ambígua: duas vagas da mesma empresa
+    assert match_job("Outra", "x", jobs) == ""
+
+
+def test_sync_mail_appends_new_emails_only():
+    ws = FakeWorksheet()
+    emails = [{
+        "id": "m1", "thread": "t", "sent_at": "2026-10-21T13:00:00+00:00",
+        "kind": "reprovada", "sender": "ITAU", "subject": "Reprovação", "company": "ITAU",
+    }]
+
+    assert sync_mail(ws, emails, []) == 1
+    assert sync_mail(ws, emails, []) == 0
+    assert ws.values[0] == MAIL_HEADERS
+    assert ws.values[1][1] == "reprovada"

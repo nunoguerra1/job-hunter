@@ -37,6 +37,19 @@ class JobStore:
             )
             """
         )
+        self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS emails (
+                id TEXT PRIMARY KEY,
+                thread TEXT NOT NULL,
+                sent_at TEXT NOT NULL,
+                kind TEXT NOT NULL,
+                sender TEXT NOT NULL,
+                subject TEXT NOT NULL,
+                company TEXT NOT NULL
+            )
+            """
+        )
         self.conn.commit()
 
     def add_new(self, jobs: list[Job]) -> list[Job]:
@@ -82,3 +95,24 @@ class JobStore:
     def clear_status(self, uid: str) -> None:
         self.conn.execute("DELETE FROM applications WHERE uid = ?", (uid,))
         self.conn.commit()
+
+    def add_emails(self, rows: list[dict]) -> int:
+        added = 0
+        for row in rows:
+            cursor = self.conn.execute(
+                "INSERT OR IGNORE INTO emails (id, thread, sent_at, kind, sender, subject, company)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (row["id"], row["thread"], row["sent_at"], row["kind"], row["sender"],
+                 row["subject"], row["company"]),
+            )
+            added += cursor.rowcount
+        self.conn.commit()
+        return added
+
+    def emails(self) -> list[dict]:
+        cursor = self.conn.execute(
+            "SELECT id, thread, sent_at, kind, sender, subject, company FROM emails"
+            " ORDER BY sent_at"
+        )
+        columns = [column[0] for column in cursor.description]
+        return [dict(zip(columns, row, strict=True)) for row in cursor.fetchall()]
