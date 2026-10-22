@@ -15,7 +15,7 @@ JOB_QUERY = (
     "OR subject:vaga OR subject:entrevista OR subject:estágio)"
 )
 _ADDRESS = re.compile(r"@([\w.-]+)")
-
+_NAME = re.compile(r'^\s*"?([^"<]+?)"?\s*<')
 
 def get_service():
     """Autoriza (abre o navegador na primeira vez) e devolve o cliente do Gmail."""
@@ -44,6 +44,9 @@ def sender_domain(from_header: str) -> str:
     match = _ADDRESS.search(from_header)
     return match.group(1).lower() if match else ""
 
+def sender_name(from_header: str) -> str:
+    match = _NAME.match(from_header)
+    return match.group(1).strip() if match else ""
 
 def recent_headers(service, query: str = JOB_QUERY, max_results: int = 60) -> list[dict]:
     """Só cabeçalhos (remetente, assunto, data): o corpo dos e-mails nunca é lido."""
@@ -68,8 +71,10 @@ def recent_headers(service, query: str = JOB_QUERY, max_results: int = 60) -> li
         }
         results.append({
             "id": item["id"],
+            "thread": item.get("threadId", ""),
             "from": headers.get("from", ""),
             "subject": headers.get("subject", ""),
             "date": headers.get("date", ""),
+            "snippet": message.get("snippet", ""),
         })
     return results
