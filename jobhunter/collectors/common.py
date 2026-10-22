@@ -6,7 +6,9 @@ from jobhunter.classify import detect_level
 from jobhunter.filters import normalize
 from jobhunter.models import Level, Modality
 
-BRAZIL_TERMS = ("brasil", "brazil", "latam", "latin america", "america latina", "anywhere")
+BRAZIL_TERMS = (
+    "brasil", "brazil", "latam", "latin america", "america latina", "anywhere", "worldwide",
+)
 HYBRID_TERMS = ("hybrid", "hibrido")
 REMOTE_TERMS = ("remote", "remoto", "home office", "teletrabalho", "anywhere")
 

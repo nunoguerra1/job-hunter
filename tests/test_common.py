@@ -6,6 +6,7 @@ def test_accepts_only_brazil_friendly_locations():
     assert accepts_location("Remote - Brazil")
     assert accepts_location("LATAM")
     assert accepts_location("Anywhere")
+    assert accepts_location("Worldwide")
     assert not accepts_location("Remote - US")
     assert not accepts_location("")
 
