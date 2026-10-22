@@ -143,6 +143,12 @@ def print_fill(result: FillResult) -> None:
     for plan in mine:
         print(f"   [ ! ] {plan.question[:70]} ({plan.reason})")
 
+def finish_application(store: JobStore, uid: str, answer: str) -> bool:
+    """Só marca como enviada se você confirmar que clicou em enviar."""
+    if answer.strip().lower() in {"s", "sim", "y", "yes"}:
+        store.set_status(uid, APPLIED)
+        return True
+    return False
 
 def fill_job(store: JobStore, uid: str) -> None:
     job = next((j for j in store.all() if j.uid == uid), None)
@@ -168,6 +174,8 @@ def fill_job(store: JobStore, uid: str) -> None:
             if input("Enter preenche a etapa atual, 'q' encerra: ").strip().lower() == "q":
                 break
             open_pages = [p for p in context.pages if not p.is_closed()]
+            if finish_application(store, uid, input("Você enviou esta candidatura? (s/N) ")):
+                print(f"Marcada como enviada: {uid}")
             if not open_pages:
                 print("  nenhuma aba aberta; encerrando.")
                 break

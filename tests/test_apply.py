@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from jobhunter.application import Application
-from jobhunter.apply import approved_jobs, draft_context, page_is_closed
+from jobhunter.apply import approved_jobs, draft_context, finish_application, page_is_closed
 from jobhunter.models import Job
 from jobhunter.review import APPLIED, APPROVED
 from jobhunter.storage import JobStore
@@ -42,3 +42,12 @@ def test_draft_context_reads_generated_texts(tmp_path):
 
     assert draft_context("t:1", tmp_path)["why_us"] == "meu texto"
     assert draft_context("t:404", tmp_path) == {}
+
+def test_finish_application_requires_explicit_yes():
+    store = JobStore(":memory:")
+    store.add_new([make_job("1")])
+
+    assert not finish_application(store, "t:1", "")
+    assert store.statuses() == {}
+    assert finish_application(store, "t:1", "s")
+    assert store.statuses()["t:1"] == "applied"
