@@ -1,4 +1,4 @@
-from jobhunter.gmail import recent_headers, sender_domain, sender_name
+from jobhunter.gmail import my_address, recent_headers, sender_domain, sender_name
 
 
 class FakeRequest:
@@ -29,6 +29,9 @@ class FakeUsers:
     def messages(self):
         return FakeMessages()
 
+    def getProfile(self, **kwargs):  # noqa: N802 (nome da API do Gmail)
+        return FakeRequest({"emailAddress": "Nuno@Gmail.com"})
+
 
 class FakeService:
     def users(self):
@@ -57,3 +60,6 @@ def test_recent_headers_reads_only_metadata():
         "date": "Tue, 20 Oct 2026 10:00:00 -0300",
         "snippet": "Recebemos sua candidatura.",
     }]
+
+def test_my_address_is_lowercase():
+    assert my_address(FakeService()) == "nuno@gmail.com"

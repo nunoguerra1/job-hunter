@@ -78,3 +78,8 @@ def recent_headers(service, query: str = JOB_QUERY, max_results: int = 60) -> li
             "snippet": message.get("snippet", ""),
         })
     return results
+
+def my_address(service) -> str:
+    """Endereço da própria conta, para reconhecer e-mails enviados por você."""
+    profile = service.users().getProfile(userId="me").execute()
+    return profile.get("emailAddress", "").lower()
