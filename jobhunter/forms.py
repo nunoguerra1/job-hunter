@@ -116,7 +116,17 @@ FIELDS_JS = """
     .map(b => (b.innerText || b.value || '').trim())
     .filter(Boolean)
     .slice(0, 30);
-  return {url: location.href, title: document.title, fields, questions, buttons};
+
+  const files = [...document.querySelectorAll('input[type=file]')].map(el => ({
+    name: el.name || '',
+    id: el.id || '',
+    accept: el.accept || '',
+    multiple: el.multiple,
+    label: labelFor(el).slice(0, 200),
+    context: ((el.closest('section, form, div[class]') || el.parentElement || {})
+      .innerText || '').trim().slice(0, 200)
+  }));
+  return {url: location.href, title: document.title, fields, questions, files, buttons};
 }
 """
 

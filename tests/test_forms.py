@@ -143,3 +143,15 @@ def test_normalize_questions_marks_required_and_keeps_raw():
     assert items[0]["number"] == 6
     assert items[0]["required"] is True
     assert items[0]["raw"] == "6. Acesso à região?  *"
+
+HTML_UPLOAD = """
+<section><h3>Currículo</h3>
+  <label>Anexar arquivo <input type="file" accept=".pdf" style="display:none"></label>
+</section>
+"""
+
+def test_capture_lists_hidden_file_inputs():
+    files = capture_html(HTML_UPLOAD)["files"]
+
+    assert len(files) == 1
+    assert files[0]["accept"] == ".pdf"
