@@ -11,8 +11,8 @@ from jobhunter.models import Job
 
 HEADERS = [
     "Título", "Empresa", "Tipo de cargo", "Salário", "Benefícios", "Modalidade", "Local",
-    "Custo de vida/mês", "Sobra estimada", "Nota", "Resumo da IA", "Prazo", "Etapas",
-    "Status", "Link", "ID",
+    "Custo de vida/mês", "Sobra estimada", "Nota", "Resumo da IA", "Publicada", "Prazo",
+    "Etapas", "Status", "Link", "ID",
 ]
 ID_COL = HEADERS.index("ID")
 ETAPAS_COL = HEADERS.index("Etapas")
@@ -34,7 +34,7 @@ COLUMN_WIDTHS = {
     "Título": 320, "Empresa": 200, "Tipo de cargo": 110, "Salário": 150,
     "Benefícios": 230, "Modalidade": 110, "Local": 200, "Custo de vida/mês": 150,
     "Sobra estimada": 200, "Nota": 60, "Resumo da IA": 420, "Prazo": 90, "Etapas": 70,
-    "Status": 130, "Link": 200, "ID": 110,
+    "Status": 130, "Link": 200, "ID": 110, "Publicada": 90
 }
 
 
@@ -67,6 +67,7 @@ def job_to_row(
         surplus,
         result.score,
         result.summary,
+        job.published_at.strftime("%d/%m/%Y") if job.published_at else "",
         job.deadline.strftime("%d/%m/%Y") if job.deadline else "",
         "?/?",
         "Banco de talentos" if talent_pool else "Nova",

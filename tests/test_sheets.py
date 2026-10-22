@@ -6,6 +6,7 @@ from jobhunter.sheets import (
     HEADERS,
     ID_COL,
     STATUS_COL,
+    job_to_row,
     mark_expired,
     reset_sheet,
     sync,
@@ -52,7 +53,7 @@ class FakeWorksheet:
 
 def make(external_id: str, score: int):
     job = Job(source="t", external_id=external_id, title="Dev", company="Acme", url="u",
-              deadline=datetime(2026, 11, 30))
+              deadline=datetime(2026, 11, 30), published_at=datetime(2026, 10, 1))
     result = MatchResult(score=score, course_compatible=True, matched_skills=[],
                          missing_skills=[], summary="ok")
     return job, result
@@ -126,3 +127,8 @@ def test_sync_statuses_updates_system_labels_only():
     assert ws.values[1][STATUS_COL] == "Aprovada"
     assert ws.values[2][STATUS_COL] == "Enviada"
     assert ws.values[3][STATUS_COL] == "Entrevista"
+
+def test_row_includes_publication_date():
+    job, result = make("1", 90)
+
+    assert job_to_row(job, result)[HEADERS.index("Publicada")] == "01/10/2026"
