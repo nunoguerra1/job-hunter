@@ -1,0 +1,20 @@
+# Quadros de vagas por empresa. Para achar o código de uma empresa, rode com o link de uma vaga:
+#   python -m jobhunter.boards find <link>
+# e confirme com:
+#   python -m jobhunter.boards check greenhouse <código>
+greenhouse: []
+# Exemplo (descomente depois de confirmar com o check):
+# greenhouse:
+#   - token: c6bank
+#     company: C6 Bank
+#     any_location: true   # empresa brasileira: aceita qualquer cidade
+lever: []
+
+adzuna:
+  queries:
+    - "estágio desenvolvedor home office"
+    - "estágio desenvolvedor remoto"
+    - "desenvolvedor júnior remoto"
+    - "estágio python"
+    - "estágio dados remoto"
+  max_pages: 2
