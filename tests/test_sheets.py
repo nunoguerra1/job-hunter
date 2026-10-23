@@ -160,3 +160,10 @@ def test_sync_mail_appends_new_emails_only():
     assert sync_mail(ws, emails, []) == 0
     assert ws.values[0] == MAIL_HEADERS
     assert ws.values[1][1] == "reprovada"
+
+def test_match_job_matches_company_with_slogan():
+    jobs = [
+        Job(source="t", external_id="1", title="Dev", company="Venha trabalhar na Zenvia", url="u")
+    ]
+
+    assert match_job("Zenvia", "Inscrição recebida", jobs) == "t:1"

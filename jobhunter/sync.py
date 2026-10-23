@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 
 from jobhunter.cost import load_costs
 from jobhunter.filters import prefilter
+from jobhunter.mail_status import sync_mail_status
 from jobhunter.profile import load_profile
 from jobhunter.sheets import (
     mark_expired,
@@ -39,14 +40,17 @@ def main(min_score: int = MIN_SCORE, rebuild: bool = False) -> None:
     added = sync(ws, entries, table=load_costs(), home_city=profile.city)
     expired = mark_expired(ws)
     updated = sync_statuses(ws, store.statuses())
+    emails = store.emails()
+    progressed = sync_mail_status(ws, emails, store.all())
     style_sheet(ws)
     print(f"{len(entries)} vagas elegíveis (nota >= {min_score}); {added} novas na planilha.")
     if expired:
         print(f"{expired} vagas marcadas como Encerrada (prazo vencido).")
     if updated:
         print(f"{updated} status atualizados a partir das suas decisões no Telegram.")
+    if progressed:
+        print(f"{progressed} vagas com andamento atualizado a partir dos e-mails.")
 
-    emails = store.emails()
     if emails:
         mail_ws = open_worksheet("Candidaturas")
         added_mail = sync_mail(mail_ws, emails, store.all())

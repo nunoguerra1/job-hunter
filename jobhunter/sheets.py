@@ -171,10 +171,14 @@ def sync_statuses(ws: gspread.Worksheet, statuses: dict[str, str]) -> int:
 def match_job(company: str, subject: str, jobs: list[Job]) -> str:
     """UID da vaga cuja empresa aparece no e-mail; vazio se for ambíguo ou não houver."""
     haystack = normalize(f"{company} {subject}")
-    matches = {
-        job.uid for job in jobs
-        if len(normalize(job.company)) >= 5 and normalize(job.company) in haystack
-    }
+    sender = normalize(company)
+    matches = set()
+    for job in jobs:
+        name = normalize(job.company)
+        if len(name) >= 5 and name in haystack:
+            matches.add(job.uid)
+        elif len(sender) >= 5 and sender in name:
+            matches.add(job.uid)
     return next(iter(matches)) if len(matches) == 1 else ""
 
 
