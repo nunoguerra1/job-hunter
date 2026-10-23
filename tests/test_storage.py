@@ -32,3 +32,9 @@ def test_clear_status():
     store.set_status("t:1", "approved")
     store.clear_status("t:1")
     assert store.statuses() == {}
+
+def test_status_times_records_when_status_was_set():
+    store = JobStore(":memory:")
+    store.set_status("t:1", "applied")
+
+    assert "t:1" in store.status_times()

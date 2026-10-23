@@ -116,3 +116,8 @@ class JobStore:
         )
         columns = [column[0] for column in cursor.description]
         return [dict(zip(columns, row, strict=True)) for row in cursor.fetchall()]
+
+    def status_times(self) -> dict[str, str]:
+        """Quando cada status foi definido pela última vez (ISO, UTC)."""
+        rows = self.conn.execute("SELECT uid, updated_at FROM applications").fetchall()
+        return dict(rows)
