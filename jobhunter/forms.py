@@ -186,3 +186,21 @@ def save_snapshot(data: dict, uid: str, step: int, folder: Path = FORMS_DIR) -> 
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
     return path
+
+TEXT_JS = "() => document.body.innerText"
+
+def capture_text(page: Page, limit: int = 6000, attempts: int = 6) -> dict:
+    """Texto visível da página, para ver onde aparecem etapas e botões."""
+    last_error: PlaywrightError | None = None
+    for _ in range(attempts):
+        try:
+            page.wait_for_load_state("domcontentloaded", timeout=10000)
+            page.wait_for_timeout(800)
+            text = page.evaluate(TEXT_JS)
+            title = page.title()
+        except PlaywrightError as error:
+            last_error = error
+            page.wait_for_timeout(1500)
+            continue
+        return {"url": sanitize_url(page.url), "title": title, "text": text[:limit]}
+    raise last_error or RuntimeError("falha ao capturar o texto da página")

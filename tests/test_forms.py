@@ -6,6 +6,7 @@ from playwright.sync_api import sync_playwright
 
 from jobhunter.forms import (
     capture,
+    capture_text,
     clean_question,
     normalize_questions,
     sanitize_url,
@@ -155,3 +156,26 @@ def test_capture_lists_hidden_file_inputs():
 
     assert len(files) == 1
     assert files[0]["accept"] == ".pdf"
+
+def text_of(html: str, limit: int) -> dict:
+    try:
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            try:
+                page = browser.new_page()
+                page.set_content(html)
+                return capture_text(page, limit=limit)
+            finally:
+                browser.close()
+    except PlaywrightError:
+        pytest.skip("Chromium não instalado neste ambiente")
+
+
+def test_capture_text_reads_visible_text():
+    data = text_of("<h1>Minhas candidaturas</h1><p>Etapa 2 de 4</p>", 200)
+
+    assert "Etapa 2 de 4" in data["text"]
+
+
+def test_capture_text_truncates():
+    assert len(text_of("<p>" + "a" * 100 + "</p>", 10)["text"]) == 10
