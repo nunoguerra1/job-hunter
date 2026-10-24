@@ -349,6 +349,14 @@ mostra quantas candidaturas estão em cada status e lista as **Enviadas** e as *
 não enviadas**. A confirmação real é o **e-mail da empresa** ("Inscrição recebida", "Candidatura
 recebida com sucesso"), que costuma chegar em minutos. Para trazê-lo para a planilha:
 
+Para trazer a **etapa atual** (ex.: `1/7`) direto da sua conta da Gupy, rode (o Chromium abre,
+já logado, e lê a tela "Minhas candidaturas"; ele só lê e não clica em nada que mude candidatura):
+
+    python -m jobhunter.progress
+
+Ele também marca como enviadas as vagas que aparecem na sua lista da Gupy e mostra as candidaturas
+que você fez fora do sistema como "sem vaga ligada".
+
 ```powershell
 python -m jobhunter.mail sync
 python -m jobhunter.sync
@@ -386,6 +394,7 @@ piora a qualidade e aumenta o risco de a plataforma estranhar o uso.
 | Quando mudar algo na vida acadêmica | editar `expected_graduation` em `profile/profile.yaml` | Os textos e as notas passam a usar a data nova |
 | Ao querer mais vagas home office | `python -m jobhunter.boards find <link de uma vaga>` | Descobre o código do quadro Greenhouse ou Lever de uma empresa |
 | Se a planilha ficar bagunçada | `python -m jobhunter.sync --rebuild` | Reconstrói a planilha (**apaga edições manuais** de Status e Etapas) |
+| Depois de se candidatar na Gupy | `python -m jobhunter.progress` e `python -m jobhunter.sync` | Preenche a coluna Etapas e a aba Gupy |
 
 ### Rodar o `daily` sozinho (opcional)
 
@@ -423,7 +432,7 @@ Uma linha por vaga com nota 60 ou mais e curso compatível, ordenada por nota.
 | Nota | Compatibilidade de 0 a 100 (ver abaixo) |
 | Resumo da IA | Em 1 ou 2 frases, o motivo da nota |
 | Publicada, Prazo | Datas da vaga |
-| Etapas | Hoje fica como `?/?` (ainda não é preenchido automaticamente) |
+| Etapas | Etapa atual e total como a Gupy mostra (ex.: 1/7), vinda de python -m jobhunter.progress. Vagas de outras fontes ficam ?/? |
 | Status | Ver seção 7 |
 | Link, ID | Link da vaga e o id que você usa nos comandos |
 
@@ -441,6 +450,12 @@ exceção é o `--rebuild`.
 Uma linha por e-mail de candidatura (inclusive de vagas que você enviou fora do sistema): data,
 situação, empresa ou remetente (estimado, pode errar), assunto e, quando a empresa bate com **uma
 única** vaga da aba "Vagas", qual é ela.
+
+### Aba "Gupy"
+
+Todas as candidaturas da sua conta na Gupy (inclusive as feitas fora do sistema), com a etapa,
+a aba da Gupy (em andamento, banco de talentos ou finalizadas) e, quando existe, a vaga ligada.
+É gerada do zero a cada `sync`: não edite nela.
 
 ---
 
@@ -500,6 +515,8 @@ Todos começam com `python -m jobhunter`.
 | `.boards check <tipo> <código>` | Confirma que o quadro existe e lista algumas vagas |
 | `.mail link` | Mostra a qual vaga cada e-mail guardado se liga. Útil quando o Status da planilha não atualiza |
 | `.snap` | Captura o texto visível de telas da Gupy (com máscara de dados pessoais), para criar novos recursos |
+| `.progress` | Lê "Minhas candidaturas" da Gupy: etapas (n/m), marca enviadas e liga às vagas |
+| `.progress link <id da vaga> <id da candidatura>` | Liga à mão uma candidatura a uma vaga |
 
 ---
 
