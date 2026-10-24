@@ -50,6 +50,23 @@ class JobStore:
             )
             """
         )
+        self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS gupy_applications (
+                application_id TEXT PRIMARY KEY,
+                company TEXT NOT NULL,
+                title TEXT NOT NULL,
+                location TEXT NOT NULL,
+                workplace TEXT NOT NULL,
+                contract TEXT NOT NULL,
+                current INTEGER,
+                total INTEGER,
+                tab TEXT NOT NULL,
+                job_uid TEXT NOT NULL,
+                seen_at TEXT NOT NULL
+            )
+            """
+        )
         self.conn.commit()
 
     def add_new(self, jobs: list[Job]) -> list[Job]:
@@ -121,3 +138,36 @@ class JobStore:
         """Quando cada status foi definido pela última vez (ISO, UTC)."""
         rows = self.conn.execute("SELECT uid, updated_at FROM applications").fetchall()
         return dict(rows)
+
+    def save_gupy_applications(self, rows: list[dict]) -> None:
+        now = datetime.now(UTC).isoformat()
+        kept = {row["application_id"]: row["job_uid"] for row in self.gupy_applications()}
+        for row in rows:
+            job_uid = row["job_uid"] or kept.get(row["application_id"], "")
+            self.conn.execute(
+                "INSERT OR REPLACE INTO gupy_applications (application_id, company, title,"
+                " location, workplace, contract, current, total, tab, job_uid, seen_at)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    row["application_id"], row["company"], row["title"], row["location"],
+                    row["workplace"], row["contract"], row["current"], row["total"],
+                    row["tab"], job_uid, now,
+                ),
+            )
+        self.conn.commit()
+
+    def gupy_applications(self) -> list[dict]:
+        cursor = self.conn.execute(
+            "SELECT application_id, company, title, location, workplace, contract, current,"
+            " total, tab, job_uid FROM gupy_applications ORDER BY rowid"
+        )
+        columns = [column[0] for column in cursor.description]
+        return [dict(zip(columns, row, strict=True)) for row in cursor.fetchall()]
+
+    def link_gupy_application(self, application_id: str, job_uid: str) -> bool:
+        cursor = self.conn.execute(
+            "UPDATE gupy_applications SET job_uid = ? WHERE application_id = ?",
+            (job_uid, application_id),
+        )
+        self.conn.commit()
+        return cursor.rowcount > 0
