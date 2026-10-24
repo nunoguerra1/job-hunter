@@ -53,3 +53,11 @@ def test_old_news_before_applying_does_not_count():
     store.add_emails([news_email(datetime.now(UTC) - timedelta(days=30))])
 
     assert len(due_followups(store, days=10, now=datetime.now(UTC) + timedelta(days=15))) == 1
+
+def test_unapplied_twin_does_not_block_the_match():
+    store = make_store()
+    twin = Job(source="t", external_id="2", title="Outro", company="Zenvia Jobs", url="u")
+    store.add_new([twin])
+    store.add_emails([news_email(datetime.now(UTC) + timedelta(days=2))])
+
+    assert due_followups(store, days=10, now=datetime.now(UTC) + timedelta(days=15)) == []

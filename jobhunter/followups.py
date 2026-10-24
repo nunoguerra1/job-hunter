@@ -15,20 +15,22 @@ def due_followups(
     """Candidaturas enviadas há `days` dias ou mais, sem e-mail de andamento depois do envio."""
     now = now or datetime.now(UTC)
     jobs = store.all()
+    statuses = store.statuses()
     by_uid = {job.uid: job for job in jobs}
+    applied_jobs = [job for job in jobs if statuses.get(job.uid) == APPLIED]
     applied_at = {uid: datetime.fromisoformat(v) for uid, v in store.status_times().items()}
 
     news: dict[str, datetime] = {}
     for email in store.emails():
         if email["kind"] not in NEWS_KINDS:
             continue
-        uid = match_job(email["company"], email["subject"], jobs)
+        uid = match_job(email["company"], email["subject"], applied_jobs)
         if uid:
             moment = datetime.fromisoformat(email["sent_at"])
             news[uid] = max(news.get(uid, moment), moment)
 
     due = []
-    for uid, status in store.statuses().items():
+    for uid, status in statuses.items():
         if status != APPLIED or uid not in by_uid:
             continue
         if uid in news and news[uid] >= applied_at[uid]:
