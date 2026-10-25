@@ -517,6 +517,8 @@ Todos começam com `python -m jobhunter`.
 | `.snap` | Captura o texto visível de telas da Gupy (com máscara de dados pessoais), para criar novos recursos |
 | `.progress` | Lê "Minhas candidaturas" da Gupy: etapas (n/m), marca enviadas e liga às vagas |
 | `.progress link <id da vaga> <id da candidatura>` | Liga à mão uma candidatura a uma vaga |
+| `.progress dump` | Salva o texto de cada aba de "Minhas candidaturas" (com máscara de dados pessoais) em `data/pages/` |
+| `.progress link - <número da candidatura>` | Desfaz uma ligação errada entre uma candidatura da Gupy e uma vaga |
 
 ---
 
