@@ -67,6 +67,14 @@ class JobStore:
             )
             """
         )
+        self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS gupy_manual_links (
+                application_id TEXT PRIMARY KEY,
+                job_uid TEXT NOT NULL
+            )
+            """
+        )
         self.conn.commit()
 
     def add_new(self, jobs: list[Job]) -> list[Job]:
@@ -140,10 +148,13 @@ class JobStore:
         return dict(rows)
 
     def save_gupy_applications(self, rows: list[dict]) -> None:
+        """Guarda a lista da Gupy. Ligações manuais valem sempre; as automáticas são refeitas."""
         now = datetime.now(UTC).isoformat()
-        kept = {row["application_id"]: row["job_uid"] for row in self.gupy_applications()}
+        manual = dict(
+            self.conn.execute("SELECT application_id, job_uid FROM gupy_manual_links").fetchall()
+        )
         for row in rows:
-            job_uid = row["job_uid"] or kept.get(row["application_id"], "")
+            job_uid = manual.get(row["application_id"]) or row["job_uid"]
             self.conn.execute(
                 "INSERT OR REPLACE INTO gupy_applications (application_id, company, title,"
                 " location, workplace, contract, current, total, tab, job_uid, seen_at)"
@@ -165,9 +176,25 @@ class JobStore:
         return [dict(zip(columns, row, strict=True)) for row in cursor.fetchall()]
 
     def link_gupy_application(self, application_id: str, job_uid: str) -> bool:
-        cursor = self.conn.execute(
+        """Liga à mão uma candidatura a uma vaga. Com job_uid vazio, desfaz a ligação."""
+        found = self.conn.execute(
+            "SELECT 1 FROM gupy_applications WHERE application_id = ?", (application_id,)
+        ).fetchone()
+        if not found:
+            return False
+        if job_uid:
+            self.conn.execute(
+                "INSERT OR REPLACE INTO gupy_manual_links (application_id, job_uid)"
+                " VALUES (?, ?)",
+                (application_id, job_uid),
+            )
+        else:
+            self.conn.execute(
+                "DELETE FROM gupy_manual_links WHERE application_id = ?", (application_id,)
+            )
+        self.conn.execute(
             "UPDATE gupy_applications SET job_uid = ? WHERE application_id = ?",
             (job_uid, application_id),
         )
         self.conn.commit()
-        return cursor.rowcount > 0
+        return True

@@ -1,6 +1,8 @@
 import re
 import sys
+from collections import Counter
 from dataclasses import asdict, dataclass
+from pathlib import Path
 from urllib.parse import urlsplit
 
 from playwright.sync_api import Error as PlaywrightError
@@ -10,13 +12,16 @@ from jobhunter.browser import persistent_browser
 from jobhunter.filters import normalize
 from jobhunter.forms import capture_text
 from jobhunter.models import Job
+from jobhunter.profile import load_profile
 from jobhunter.review import APPLIED, APPROVED, AWAITING
+from jobhunter.snap import redact
 from jobhunter.storage import JobStore
 
 URL = "https://portal.gupy.io/my/applications"
 TABS = ["Em andamento", "Em banco de talentos", "Finalizadas"]
 TALENT_POOL = "Em banco de talentos"
 ENGAGED = {AWAITING, APPROVED, APPLIED}
+DUMP_DIR = Path("data/pages")
 LINKS_JS = """
 () => [...document.querySelectorAll('a[href*="/candidates/applications/"]')].map(a => a.href)
 """
@@ -25,7 +30,13 @@ _ID = re.compile(r"^Ver andamento da candidatura\s*(\d+)$")
 _FOOTER = re.compile(r"^Candidatura (\d+) de (\d+)\.$")
 _STAGE = re.compile(r"^(\d+)/(\d+)$")
 _HREF = re.compile(r"https?://([^/]+)/candidates/applications/(\d+)")
-_BOUNDARIES = ("Já concluiu uma etapa", "Em andamento", "Em banco de talentos", "Finalizadas")
+_BOUNDARIES = (
+    "Já concluiu uma etapa",
+    "As inscrições em bancos de",
+    "Em andamento",
+    "Em banco de talentos",
+    "Finalizadas",
+)
 _WORKPLACES = {"Remoto", "Híbrido", "Presencial"}
 _MARKERS = {"Também p/ PcD", "Seu Progresso"}
 
@@ -134,10 +145,13 @@ def match_job_uid(card: Card, jobs: list[Job], statuses: dict[str, str]) -> tupl
 def record_cards(store: JobStore, cards: list[Card]) -> None:
     jobs = store.all()
     statuses = store.statuses()
-    rows = []
-    for card in cards:
-        uid, _how = match_job_uid(card, jobs, statuses)
-        rows.append({**asdict(card), "job_uid": uid})
+    matched = [(card, match_job_uid(card, jobs, statuses)[0]) for card in cards]
+    claims = Counter(uid for _, uid in matched if uid)
+    # Dois cartões que reivindicam a mesma vaga: não se liga nenhum (na dúvida, não liga).
+    rows = [
+        {**asdict(card), "job_uid": uid if uid and claims[uid] == 1 else ""}
+        for card, uid in matched
+    ]
     store.save_gupy_applications(rows)
 
 
@@ -184,11 +198,29 @@ def collect(page: Page) -> list[Card]:
         found, announced = read_tab(page, tab)
         note = ""
         if announced and len(found) < announced:
-            note = f" (a Gupy anuncia {announced}: pode haver mais páginas)"
+            note = f" (a Gupy anuncia {announced}: não reconheci o formato dos outros)"
         print(f"  aba '{tab}': {len(found)} candidaturas{note}")
         for card in found:
             cards.setdefault(card.application_id, card)
     return list(cards.values())
+
+
+def dump_tabs(
+    page, names: list[str], folder: Path = DUMP_DIR, opener=open_tab, reader=capture_text
+) -> list[Path]:
+    """Salva o texto de cada aba (com máscara de dados pessoais) para eu ver o formato real."""
+    folder.mkdir(parents=True, exist_ok=True)
+    saved = []
+    for index, tab in enumerate(TABS, start=1):
+        if index > 1 and not opener(page, tab):
+            print(f"  aba '{tab}': não consegui abrir; pulei.")
+            continue
+        data = reader(page, limit=100_000)
+        body = redact(data["text"], names)
+        path = folder / f"aba_{index}.txt"
+        path.write_text(f"{data['url']}\n{tab}\n\n{body}", encoding="utf-8")
+        saved.append(path)
+    return saved
 
 
 def print_report(store: JobStore) -> None:
@@ -196,13 +228,15 @@ def print_report(store: JobStore) -> None:
     print(f"\n{len(rows)} candidaturas na sua conta da Gupy:")
     for row in rows:
         stage = f"{row['current']}/{row['total']}" if row["current"] is not None else "-"
-        target = row["job_uid"] or f"sem vaga ligada (candidatura {row['application_id']})"
-        print(f"  {stage:>4} | {row['company'][:26]} | {row['title'][:36]} | {target}")
+        target = row["job_uid"] or "sem vaga ligada"
+        company, title = row["company"][:26], row["title"][:36]
+        print(f"  {stage:>4} | {company} | {title} | {target} | #{row['application_id']}")
     unlinked = sum(1 for row in rows if not row["job_uid"])
     if unlinked:
         print(f"\n{unlinked} sem vaga ligada: normal para candidaturas feitas fora do sistema.")
-        print("Para ligar à mão:")
-        print("  python -m jobhunter.progress link <id da vaga> <id da candidatura>")
+        print("Para ligar à mão (ou desfazer com '-' no lugar do id da vaga):")
+        print("  python -m jobhunter.progress link <id da vaga> <número da candidatura>")
+
 
 def ensure_applications_page(page: Page, ask=input) -> bool:
     """Abre 'Minhas candidaturas'. Se não estiver logado, deixa o navegador aberto para o login."""
@@ -220,15 +254,23 @@ def ensure_applications_page(page: Page, ask=input) -> bool:
             page.goto(URL, wait_until="domcontentloaded")
     return False
 
+
 def main(argv: list[str]) -> None:
     store = JobStore()
     if argv and argv[0] == "link":
         if len(argv) < 3:
-            print("Uso: python -m jobhunter.progress link <id da vaga> <id da candidatura>")
+            print("Uso: python -m jobhunter.progress link <id da vaga> <número da candidatura>")
+            print("     (use '-' no lugar do id da vaga para desfazer a ligação)")
             return
-        linked = store.link_gupy_application(argv[2], argv[1])
+        job_uid = "" if argv[1] == "-" else argv[1]
+        linked = store.link_gupy_application(argv[2], job_uid)
         print("Ligação salva." if linked else "Candidatura não encontrada: rode sem 'link'.")
         return
+    dump = bool(argv) and argv[0] == "dump"
+    try:
+        names = load_profile().name.split()
+    except FileNotFoundError:
+        names = []
     with persistent_browser() as context:
         page = context.pages[0] if context.pages else context.new_page()
         page.goto(URL, wait_until="domcontentloaded")
@@ -236,7 +278,13 @@ def main(argv: list[str]) -> None:
             print("Ainda não consegui abrir 'Minhas candidaturas'. Rode de novo depois de logar.")
             return
         page.wait_for_timeout(2500)
-        cards = collect(page)
+        saved = dump_tabs(page, names) if dump else []
+        cards = [] if dump else collect(page)
+    if dump:
+        for path in saved:
+            print(f"salvo: {path}")
+        print("Abra cada arquivo, apague o que for pessoal e cole o conteúdo aqui.")
+        return
     if not cards:
         print("Nenhuma candidatura lida.")
         return

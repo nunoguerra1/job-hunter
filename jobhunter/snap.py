@@ -11,7 +11,7 @@ START_URL = "https://portal.gupy.io/"
 OUTPUT = Path("data/pages")
 _EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 _CPF = re.compile(r"\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b")
-_PHONE = re.compile(r"\(?\d{2}\)?\s?9?\d{4}[-\s]?\d{4}")
+_PHONE = re.compile(r"(?<!\d)(?:\(?\d{2}\)?\s?9?\d{4}[-\s]?\d{4}|9?\d{4}[-\s]\d{4})(?!\d)")
 
 
 def redact(text: str, names: list[str]) -> str:

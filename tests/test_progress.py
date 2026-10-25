@@ -1,9 +1,12 @@
+from dataclasses import asdict
+
 from playwright.sync_api import Error as PlaywrightError
 
 from jobhunter.models import Job
 from jobhunter.progress import (
     URL,
     Card,
+    dump_tabs,
     ensure_applications_page,
     hosts_from_links,
     mark_applied_jobs,
@@ -210,3 +213,86 @@ def test_gives_up_after_one_chance_to_log_in():
 
     assert not ensure_applications_page(FakePage(9, "https://x"), ask=asked.append)
     assert len(asked) == 1
+
+TALENT_POOL_SAMPLE = """Minhas candidaturas
+Em andamento
+Em banco de talentos
+Finalizadas
+As inscrições em bancos de talentos não geram candidaturas a vagas específicas.
+Vivo (Telefônica Brasil)
+
+Talentos em Tecnologia
+Não informado
+Remoto
+Efetivo
+Ver andamento da candidatura757675121
+Ver andamento
+Candidatura 1 de 1.
+"""
+
+
+def test_parse_cards_ignores_the_talent_pool_banner():
+    cards, _ = parse_cards(TALENT_POOL_SAMPLE, "Em banco de talentos")
+
+    assert cards[0].company == "Vivo (Telefônica Brasil)"
+    assert cards[0].title == "Talentos em Tecnologia"
+
+
+def test_two_cards_claiming_the_same_job_are_left_unlinked():
+    store = JobStore(":memory:")
+    store.add_new([gupy_job("1", "Zenvia Jobs", "Dev Júnior")])
+    cards = [
+        make_card(application_id="10", host="zenvia.gupy.io"),
+        make_card(application_id="11", host="zenvia.gupy.io"),
+    ]
+
+    record_cards(store, cards)
+
+    assert [row["job_uid"] for row in store.gupy_applications()] == ["", ""]
+
+
+def test_old_automatic_links_do_not_stick():
+    store = JobStore(":memory:")
+    store.add_new([gupy_job("1", "Zenvia Jobs", "Outro título")])
+    card = make_card(company="Outra empresa")
+    store.save_gupy_applications([{**asdict(card), "job_uid": "gupy:1"}])  # ligação automática
+
+    record_cards(store, [card])
+
+    assert store.gupy_applications()[0]["job_uid"] == ""
+
+
+def test_manual_link_can_be_undone():
+    store = JobStore(":memory:")
+    store.add_new([gupy_job("1", "Zenvia Jobs", "Outro título")])
+    card = make_card(company="Outra empresa")
+    record_cards(store, [card])
+
+    assert store.link_gupy_application("10", "gupy:1")
+    assert store.link_gupy_application("10", "")
+    record_cards(store, [card])
+
+    assert store.gupy_applications()[0]["job_uid"] == ""
+
+
+def test_dump_tabs_saves_redacted_text(tmp_path):
+    def reader(page, limit):
+        return {"url": "https://portal.gupy.io/my/applications", "text": "Olá Nuno 99696-4920"}
+
+    saved = dump_tabs(object(), ["Nuno"], tmp_path, opener=lambda page, tab: True, reader=reader)
+
+    assert [path.name for path in saved] == ["aba_1.txt", "aba_2.txt", "aba_3.txt"]
+    content = saved[0].read_text(encoding="utf-8")
+    assert "Nuno" not in content
+    assert "99696" not in content
+
+
+def test_dump_tabs_skips_tabs_that_do_not_open(tmp_path):
+    def reader(page, limit):
+        return {"url": "u", "text": "texto"}
+
+    saved = dump_tabs(
+        object(), [], tmp_path, opener=lambda page, tab: tab != "Finalizadas", reader=reader
+    )
+
+    assert [path.name for path in saved] == ["aba_1.txt", "aba_2.txt"]
