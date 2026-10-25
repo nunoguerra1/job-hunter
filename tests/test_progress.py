@@ -1,6 +1,10 @@
+from playwright.sync_api import Error as PlaywrightError
+
 from jobhunter.models import Job
 from jobhunter.progress import (
+    URL,
     Card,
+    ensure_applications_page,
     hosts_from_links,
     mark_applied_jobs,
     match_job_uid,
@@ -170,3 +174,39 @@ def test_manual_link_survives_the_next_read():
     record_cards(store, [card])
 
     assert store.gupy_applications()[0]["job_uid"] == "gupy:1"
+
+class FakePage:
+    def __init__(self, failures: int, url: str):
+        self.failures = failures
+        self.url = url
+        self.calls = 0
+
+    def wait_for_selector(self, selector, timeout):
+        self.calls += 1
+        if self.calls <= self.failures:
+            raise PlaywrightError("timeout")
+
+    def goto(self, url, wait_until):
+        self.url = url
+
+
+def test_logged_in_user_is_not_asked_anything():
+    asked = []
+
+    assert ensure_applications_page(FakePage(0, URL), ask=asked.append)
+    assert asked == []
+
+
+def test_logged_out_user_gets_time_to_log_in():
+    asked = []
+    page = FakePage(1, "https://portal.gupy.io/login")
+
+    assert ensure_applications_page(page, ask=asked.append)
+    assert len(asked) == 1
+
+
+def test_gives_up_after_one_chance_to_log_in():
+    asked = []
+
+    assert not ensure_applications_page(FakePage(9, "https://x"), ask=asked.append)
+    assert len(asked) == 1

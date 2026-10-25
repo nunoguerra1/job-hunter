@@ -204,6 +204,21 @@ def print_report(store: JobStore) -> None:
         print("Para ligar à mão:")
         print("  python -m jobhunter.progress link <id da vaga> <id da candidatura>")
 
+def ensure_applications_page(page: Page, ask=input) -> bool:
+    """Abre 'Minhas candidaturas'. Se não estiver logado, deixa o navegador aberto para o login."""
+    for attempt in range(2):
+        try:
+            page.wait_for_selector("text=Minhas candidaturas", timeout=20000)
+            if "/my/applications" in page.url:
+                return True
+        except PlaywrightError:
+            pass
+        if attempt == 0:
+            print("Não encontrei a lista 'Minhas candidaturas'. Você não está logado.")
+            print("Faça login na janela do Chromium (ela fica aberta).")
+            ask("Depois de logar, aperte Enter aqui... ")
+            page.goto(URL, wait_until="domcontentloaded")
+    return False
 
 def main(argv: list[str]) -> None:
     store = JobStore()
@@ -217,11 +232,8 @@ def main(argv: list[str]) -> None:
     with persistent_browser() as context:
         page = context.pages[0] if context.pages else context.new_page()
         page.goto(URL, wait_until="domcontentloaded")
-        try:
-            page.wait_for_selector("text=Minhas candidaturas", timeout=20000)
-        except PlaywrightError:
-            print("Não encontrei a tela 'Minhas candidaturas'. Faça login:")
-            print("  python -m jobhunter.apply login")
+        if not ensure_applications_page(page):
+            print("Ainda não consegui abrir 'Minhas candidaturas'. Rode de novo depois de logar.")
             return
         page.wait_for_timeout(2500)
         cards = collect(page)
