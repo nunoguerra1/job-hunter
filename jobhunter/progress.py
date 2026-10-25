@@ -1,3 +1,4 @@
+import hashlib
 import re
 import sys
 from collections import Counter
@@ -22,9 +23,14 @@ TABS = ["Em andamento", "Em banco de talentos", "Finalizadas"]
 TALENT_POOL = "Em banco de talentos"
 ENGAGED = {AWAITING, APPROVED, APPLIED}
 DUMP_DIR = Path("data/pages")
+MAX_PAGES = 20
 LINKS_JS = """
 () => [...document.querySelectorAll('a[href*="/candidates/applications/"]')].map(a => a.href)
 """
+OUTCOME_STATUS = {
+    "Você não avançou nesse processo": "Reprovada",
+    "Vaga encerrada pela empresa": "Encerrada",
+}
 
 _ID = re.compile(r"^Ver andamento da candidatura\s*(\d+)$")
 _FOOTER = re.compile(r"^Candidatura (\d+) de (\d+)\.$")
@@ -33,12 +39,14 @@ _HREF = re.compile(r"https?://([^/]+)/candidates/applications/(\d+)")
 _BOUNDARIES = (
     "Já concluiu uma etapa",
     "As inscrições em bancos de",
+    "Você sabia que o retorno",
+    "Está com dúvidas sobre",
     "Em andamento",
     "Em banco de talentos",
     "Finalizadas",
 )
 _WORKPLACES = {"Remoto", "Híbrido", "Presencial"}
-_MARKERS = {"Também p/ PcD", "Seu Progresso"}
+_MARKERS = {"Também p/ PcD", "Seu Progresso", "Banco de Talentos"}
 
 
 @dataclass
@@ -53,6 +61,7 @@ class Card:
     total: int | None = None
     tab: str = "Em andamento"
     host: str = ""
+    outcome: str = ""
 
 
 def _is_marker(line: str) -> bool:
@@ -60,11 +69,13 @@ def _is_marker(line: str) -> bool:
 
 
 def _build(buffer: list[str], application_id: str, tab: str) -> Card | None:
+    """Cartão com número (abas 'Em andamento' e 'Em banco de talentos')."""
     if len(buffer) < 2:
         return None
     company, title, rest = buffer[0], buffer[1], buffer[2:]
     workplace = next((line for line in rest if line in _WORKPLACES), "")
-    location = rest[0] if rest and rest[0] not in _WORKPLACES else ""
+    first = rest[0] if rest else ""
+    location = first if first and first not in _WORKPLACES and not _is_marker(first) else ""
     contract = ""
     if workplace:
         after = rest[rest.index(workplace) + 1 :]
@@ -83,8 +94,29 @@ def _build(buffer: list[str], application_id: str, tab: str) -> Card | None:
     )
 
 
+def _build_finished(buffer: list[str], tab: str) -> Card | None:
+    """Cartão sem número (aba Finalizadas): lê de trás para frente, a partir da modalidade."""
+    index = next((i for i, line in enumerate(buffer) if line in _WORKPLACES), None)
+    if index is None or index < 3:
+        return None
+    company, title, location = buffer[index - 3 : index]
+    contract = next((line for line in buffer[index + 1 :] if not _is_marker(line)), "")
+    leading = buffer[: index - 3]
+    outcome = next((line for line in reversed(leading) if line in OUTCOME_STATUS), "")
+    return Card(
+        application_id="",
+        company=company,
+        title=title,
+        location=location,
+        workplace=buffer[index],
+        contract=contract,
+        tab=tab,
+        outcome=outcome,
+    )
+
+
 def parse_cards(text: str, tab: str) -> tuple[list[Card], int | None]:
-    """Lê o texto da tela 'Minhas candidaturas'. Devolve os cartões e o total que a Gupy anuncia."""
+    """Lê o texto de 'Minhas candidaturas'. Devolve os cartões e o total anunciado na página."""
     cards: list[Card] = []
     buffer: list[str] = []
     announced: int | None = None
@@ -95,6 +127,9 @@ def parse_cards(text: str, tab: str) -> tuple[list[Card], int | None]:
         footer = _FOOTER.match(line)
         if footer:
             announced = int(footer.group(2))
+            finished = _build_finished(buffer, tab)
+            if finished:
+                cards.append(finished)
             buffer = []
         elif line.startswith(_BOUNDARIES):
             buffer = []
@@ -108,6 +143,15 @@ def parse_cards(text: str, tab: str) -> tuple[list[Card], int | None]:
     return cards, announced
 
 
+def ids_in_order(hrefs: list[str]) -> list[str]:
+    ordered: list[str] = []
+    for href in hrefs:
+        match = _HREF.search(href)
+        if match and match.group(2) not in ordered:
+            ordered.append(match.group(2))
+    return ordered
+
+
 def hosts_from_links(hrefs: list[str]) -> dict[str, str]:
     """Número da candidatura -> endereço da empresa (ex.: zenvia.gupy.io), a partir dos links."""
     hosts: dict[str, str] = {}
@@ -116,6 +160,22 @@ def hosts_from_links(hrefs: list[str]) -> dict[str, str]:
         if match:
             hosts[match.group(2)] = match.group(1).lower()
     return hosts
+
+
+def assign_ids(cards: list[Card], link_ids: list[str]) -> None:
+    """Cartões sem número: usa os links da página se baterem um a um; senão, um código estável."""
+    idless = [card for card in cards if not card.application_id]
+    if not idless:
+        return
+    known = {card.application_id for card in cards if card.application_id}
+    free = [application_id for application_id in link_ids if application_id not in known]
+    if len(free) == len(idless):
+        for card, application_id in zip(idless, free, strict=True):
+            card.application_id = application_id
+        return
+    for card in idless:
+        key = normalize(f"{card.company}|{card.title}|{card.location}")
+        card.application_id = "f" + hashlib.sha1(key.encode()).hexdigest()[:10]
 
 
 def _single(group: list[Job], statuses: dict[str, str]) -> Job | None:
@@ -180,13 +240,50 @@ def open_tab(page: Page, label: str) -> bool:
     return True
 
 
-def read_tab(page: Page, tab: str) -> tuple[list[Card], int | None]:
+def has_next_page(text: str, current: int) -> bool:
+    """A paginação aparece depois do último cartão: '1 2 3 4 5 … 8'."""
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    footers = [i for i, line in enumerate(lines) if _FOOTER.match(line)]
+    if not footers:
+        return False
+    tail: list[str] = []
+    for line in lines[footers[-1] + 1 :]:
+        if not (line.isdigit() or line == "…"):
+            break
+        tail.append(line)
+    return str(current + 1) in tail
+
+
+def go_to_page(page: Page, number: int) -> bool:
+    """Clica no número da página. Só clica em números: nunca em 'Desistir' nem em cartões."""
+    label = str(number)
+    for locator in (
+        page.get_by_role("button", name=label, exact=True),
+        page.get_by_role("link", name=label, exact=True),
+        page.get_by_text(label, exact=True),
+    ):
+        try:
+            locator.last.click(timeout=3000)
+        except PlaywrightError:
+            continue
+        page.wait_for_timeout(2000)
+        return True
+    return False
+
+
+def read_tab(page: Page, tab: str) -> tuple[list[Card], int | None, str]:
     data = capture_text(page, limit=100_000)
     cards, announced = parse_cards(data["text"], tab)
-    hosts = hosts_from_links(page.evaluate(LINKS_JS))
+    hrefs = page.evaluate(LINKS_JS)
+    assign_ids(cards, ids_in_order(hrefs))
+    hosts = hosts_from_links(hrefs)
     for card in cards:
         card.host = hosts.get(card.application_id, "")
-    return cards, announced
+    return cards, announced, data["text"]
+
+
+def _new_cards(found: list[Card], seen: dict[str, Card]) -> list[Card]:
+    return [card for card in found if card.application_id not in seen]
 
 
 def collect(page: Page) -> list[Card]:
@@ -195,13 +292,21 @@ def collect(page: Page) -> list[Card]:
         if index and not open_tab(page, tab):
             print(f"  aba '{tab}': não consegui abrir; pulei.")
             continue
-        found, announced = read_tab(page, tab)
-        note = ""
-        if announced and len(found) < announced:
-            note = f" (a Gupy anuncia {announced}: não reconheci o formato dos outros)"
-        print(f"  aba '{tab}': {len(found)} candidaturas{note}")
-        for card in found:
-            cards.setdefault(card.application_id, card)
+        total = 0
+        number = 1
+        for number in range(1, MAX_PAGES + 1):
+            found, _announced, text = read_tab(page, tab)
+            fresh = _new_cards(found, cards)
+            if not fresh and number > 1:  # a página pode não ter terminado de trocar
+                page.wait_for_timeout(2500)
+                found, _announced, text = read_tab(page, tab)
+                fresh = _new_cards(found, cards)
+            for card in fresh:
+                cards[card.application_id] = card
+            total += len(fresh)
+            if not fresh or not has_next_page(text, number) or not go_to_page(page, number + 1):
+                break
+        print(f"  aba '{tab}': {total} candidaturas ({number} página(s) lida(s))")
     return list(cards.values())
 
 
@@ -228,14 +333,32 @@ def print_report(store: JobStore) -> None:
     print(f"\n{len(rows)} candidaturas na sua conta da Gupy:")
     for row in rows:
         stage = f"{row['current']}/{row['total']}" if row["current"] is not None else "-"
-        target = row["job_uid"] or "sem vaga ligada"
+        target = row["job_uid"] or f"sem vaga ligada (#{row['application_id']})"
+        result = OUTCOME_STATUS.get(row["outcome"], "")
         company, title = row["company"][:26], row["title"][:36]
-        print(f"  {stage:>4} | {company} | {title} | {target} | #{row['application_id']}")
+        line = f"  {stage:>4} | {company} | {title} | {target}"
+        print(f"{line} | {result}" if result else line)
+    names = (OUTCOME_STATUS[row["outcome"]] for row in rows if row["outcome"] in OUTCOME_STATUS)
+    results = Counter(names)
+    if results:
+        print("\nResultados: " + " | ".join(f"{name} {count}" for name, count in results.items()))
     unlinked = sum(1 for row in rows if not row["job_uid"])
     if unlinked:
         print(f"\n{unlinked} sem vaga ligada: normal para candidaturas feitas fora do sistema.")
         print("Para ligar à mão (ou desfazer com '-' no lugar do id da vaga):")
         print("  python -m jobhunter.progress link <id da vaga> <número da candidatura>")
+
+
+def _where(page: Page) -> str:
+    parts = urlsplit(page.url)
+    return f"{parts.hostname}{parts.path}"  # sem parâmetros, que podem carregar tokens
+
+
+def _goto(page: Page, url: str) -> None:
+    try:
+        page.goto(url, wait_until="domcontentloaded")
+    except PlaywrightError:
+        pass  # outra navegação já estava em andamento (ex.: o redirecionamento do login)
 
 
 def ensure_applications_page(page: Page, ask=input) -> bool:
@@ -249,9 +372,11 @@ def ensure_applications_page(page: Page, ask=input) -> bool:
             pass
         if attempt == 0:
             print("Não encontrei a lista 'Minhas candidaturas'. Você não está logado.")
+            print(f"Página atual: {_where(page)}")
             print("Faça login na janela do Chromium (ela fica aberta).")
             ask("Depois de logar, aperte Enter aqui... ")
-            page.goto(URL, wait_until="domcontentloaded")
+            if "/my/applications" not in page.url:
+                _goto(page, URL)
     return False
 
 
@@ -273,7 +398,7 @@ def main(argv: list[str]) -> None:
         names = []
     with persistent_browser() as context:
         page = context.pages[0] if context.pages else context.new_page()
-        page.goto(URL, wait_until="domcontentloaded")
+        _goto(page, URL)
         if not ensure_applications_page(page):
             print("Ainda não consegui abrir 'Minhas candidaturas'. Rode de novo depois de logar.")
             return

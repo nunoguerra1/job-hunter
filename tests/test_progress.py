@@ -1,3 +1,4 @@
+import sqlite3
 from dataclasses import asdict
 
 from playwright.sync_api import Error as PlaywrightError
@@ -6,9 +7,12 @@ from jobhunter.models import Job
 from jobhunter.progress import (
     URL,
     Card,
+    assign_ids,
     dump_tabs,
     ensure_applications_page,
+    has_next_page,
     hosts_from_links,
+    ids_in_order,
     mark_applied_jobs,
     match_job_uid,
     parse_cards,
@@ -296,3 +300,198 @@ def test_dump_tabs_skips_tabs_that_do_not_open(tmp_path):
     )
 
     assert [path.name for path in saved] == ["aba_1.txt", "aba_2.txt"]
+
+TALENT_POOL_REAL = """Em andamento
+Em banco de talentos
+Finalizadas
+
+As inscrições em bancos de talentos são uma forma de demonstrar seu interesse. Saiba mais
+
+Vivo (Telefônica Brasil)
+
+Programa de Estágio Vivo | Banco de Talentos
+Banco de Talentos
+Ver andamento da candidatura757675121
+Ver andamento
+Desistir
+Candidatura 1 de 2.
+
+LETRAS
+
+Talentos em Tecnologia
+Banco de Talentos
+Ver andamento da candidatura736058009
+Ver andamento
+Desistir
+Candidatura 2 de 2.
+1
+
+27
+"""
+
+FINISHED = """Minhas candidaturas
+Em andamento
+Em banco de talentos
+Finalizadas
+
+Você sabia que o retorno dos processos seletivos é enviado pela empresa. Saiba mais
+
+Está com dúvidas sobre o motivo do encerramento? Saiba mais sobre os tipos
+
+Você não avançou nesse processo
+
+Grupo Boticário
+
+PESSOA DESENVOLVEDORA FULLSTACK NODE.JS/REACT.JS ESPECIALISTA I (TECH CONSUMER) ·
+Não informado
+Remoto
+Efetivo
+Candidatura 1 de 4.
+Vaga encerrada pela empresa
+
+Viceri SEIDOR
+
+Pessoa Desenvolvedora Full Stack Júnior com foco em Front-End (REMOTO)
+Não informado
+Remoto
+Efetivo
+Também p/ PcD
+Candidatura 2 de 4.
+Vaga encerrada pela empresa
+
+FCamara
+
+Desenvolvedor BackEnd Node - Estagiário
+Não informado
+Remoto
+Estágio
+Também p/ PcD
+Candidatura 3 de 4.
+Você não avançou nesse processo
+
+Itaú Unibanco
+
+Trainee Itaú Unibanco 2027
+São Paulo - SP
+Híbrido
+Trainee
+Também p/ PcD
+Candidatura 4 de 4.
+1
+2
+3
+4
+5
+…
+8
+
+27
+"""
+
+REJECTED = "Você não avançou nesse processo"
+CLOSED = "Vaga encerrada pela empresa"
+
+
+def test_talent_pool_cards_have_no_fake_location():
+    cards, announced = parse_cards(TALENT_POOL_REAL, "Em banco de talentos")
+
+    assert [c.application_id for c in cards] == ["757675121", "736058009"]
+    assert cards[0].company == "Vivo (Telefônica Brasil)"
+    assert cards[0].location == ""
+    assert cards[0].contract == ""
+    assert announced == 2
+
+
+def test_finished_cards_are_read_from_the_workplace_backwards():
+    cards, announced = parse_cards(FINISHED, "Finalizadas")
+
+    assert announced == 4
+    assert ([c.company for c in cards] == 
+    ["Grupo Boticário", "Viceri SEIDOR", "FCamara", "Itaú Unibanco"])
+    assert [c.outcome for c in cards] == [REJECTED, CLOSED, CLOSED, REJECTED]
+    itau = cards[3]
+    assert ((itau.location, itau.workplace, itau.contract) == 
+    ("São Paulo - SP", "Híbrido", "Trainee"))
+    assert all(c.application_id == "" for c in cards)
+
+
+def test_has_next_page_reads_the_pagination():
+    assert has_next_page(FINISHED, 1)
+    assert not has_next_page(FINISHED, 8)
+    assert not has_next_page(TALENT_POOL_REAL, 1)
+
+
+def test_ids_in_order_deduplicates():
+    hrefs = [
+        "https://a.gupy.io/candidates/applications/2",
+        "https://a.gupy.io/candidates/applications/2",
+        "https://b.gupy.io/candidates/applications/1",
+    ]
+
+    assert ids_in_order(hrefs) == ["2", "1"]
+
+
+def test_assign_ids_uses_page_links_when_they_match_one_to_one():
+    cards, _ = parse_cards(FINISHED, "Finalizadas")
+
+    assign_ids(cards, ["501", "502", "503", "504"])
+
+    assert [c.application_id for c in cards] == ["501", "502", "503", "504"]
+
+
+def test_assign_ids_falls_back_to_stable_codes():
+    first, _ = parse_cards(FINISHED, "Finalizadas")
+    second, _ = parse_cards(FINISHED, "Finalizadas")
+
+    assign_ids(first, [])
+    assign_ids(second, ["1"])  # número de links diferente do de cartões: não confia neles
+
+    ids = [c.application_id for c in first]
+    assert ids == [c.application_id for c in second]
+    assert len(set(ids)) == 4
+    assert all(i.startswith("f") for i in ids)
+
+
+def test_outcome_is_saved_with_the_application():
+    store = JobStore(":memory:")
+
+    record_cards(store, [make_card(outcome=REJECTED)])
+
+    assert store.gupy_applications()[0]["outcome"] == REJECTED
+
+
+def test_old_database_gets_the_outcome_column(tmp_path):
+    path = tmp_path / "old.db"
+    connection = sqlite3.connect(path)
+    connection.execute(
+        "CREATE TABLE gupy_applications (application_id TEXT PRIMARY KEY, company TEXT NOT NULL,"
+        " title TEXT NOT NULL, location TEXT NOT NULL, workplace TEXT NOT NULL,"
+        " contract TEXT NOT NULL, current INTEGER, total INTEGER, tab TEXT NOT NULL,"
+        " job_uid TEXT NOT NULL, seen_at TEXT NOT NULL)"
+    )
+    connection.commit()
+    connection.close()
+
+    store = JobStore(str(path))
+
+    assert store.gupy_applications() == []
+
+
+class RacingPage(FakePage):
+    def goto(self, url, wait_until):
+        raise PlaywrightError("Navigation interrupted by another navigation")
+
+
+def test_redirect_after_login_does_not_force_a_second_navigation():
+    page = RacingPage(1, "https://portal.gupy.io/login")
+
+    def log_in(message):
+        page.url = URL  # a própria Gupy redireciona depois do login
+
+    assert ensure_applications_page(page, ask=log_in)
+
+
+def test_interrupted_navigation_is_not_fatal():
+    page = RacingPage(1, "https://portal.gupy.io/login")
+
+    assert not ensure_applications_page(page, ask=lambda message: None)

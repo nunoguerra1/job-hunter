@@ -75,6 +75,11 @@ class JobStore:
             )
             """
         )
+        columns = {row[1] for row in self.conn.execute("PRAGMA table_info(gupy_applications)")}
+        if "outcome" not in columns:
+            self.conn.execute(
+                "ALTER TABLE gupy_applications ADD COLUMN outcome TEXT NOT NULL DEFAULT ''"
+            )
         self.conn.commit()
 
     def add_new(self, jobs: list[Job]) -> list[Job]:
@@ -157,12 +162,12 @@ class JobStore:
             job_uid = manual.get(row["application_id"]) or row["job_uid"]
             self.conn.execute(
                 "INSERT OR REPLACE INTO gupy_applications (application_id, company, title,"
-                " location, workplace, contract, current, total, tab, job_uid, seen_at)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                " location, workplace, contract, current, total, tab, job_uid, seen_at, outcome)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     row["application_id"], row["company"], row["title"], row["location"],
                     row["workplace"], row["contract"], row["current"], row["total"],
-                    row["tab"], job_uid, now,
+                    row["tab"], job_uid, now, row.get("outcome", ""),
                 ),
             )
         self.conn.commit()
@@ -170,7 +175,7 @@ class JobStore:
     def gupy_applications(self) -> list[dict]:
         cursor = self.conn.execute(
             "SELECT application_id, company, title, location, workplace, contract, current,"
-            " total, tab, job_uid FROM gupy_applications ORDER BY rowid"
+            " total, tab, job_uid, outcome FROM gupy_applications ORDER BY rowid"
         )
         columns = [column[0] for column in cursor.description]
         return [dict(zip(columns, row, strict=True)) for row in cursor.fetchall()]
