@@ -519,6 +519,7 @@ Todos começam com `python -m jobhunter`.
 | `.progress link <id da vaga> <id da candidatura>` | Liga à mão uma candidatura a uma vaga |
 | `.progress dump` | Salva o texto de cada aba de "Minhas candidaturas" (com máscara de dados pessoais) em `data/pages/` |
 | `.progress link - <número da candidatura>` | Desfaz uma ligação errada entre uma candidatura da Gupy e uma vaga |
+| `.progress stats` | Resume as candidaturas finalizadas por tipo de contrato e modalidade (reprovada x encerrada) e as em andamento por etapa |
 
 ---
 
