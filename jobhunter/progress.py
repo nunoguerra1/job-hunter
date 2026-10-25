@@ -103,6 +103,8 @@ def _build_finished(buffer: list[str], tab: str) -> Card | None:
     contract = next((line for line in buffer[index + 1 :] if not _is_marker(line)), "")
     leading = buffer[: index - 3]
     outcome = next((line for line in reversed(leading) if line in OUTCOME_STATUS), "")
+    if not outcome and leading:
+        outcome = leading[-1]
     return Card(
         application_id="",
         company=company,
@@ -328,20 +330,64 @@ def dump_tabs(
     return saved
 
 
+def result_label(row: dict) -> str:
+    """Resultado em palavras curtas; texto que ainda não conheço aparece como foi escrito."""
+    return OUTCOME_STATUS.get(row["outcome"]) or row["outcome"]
+
+
+def summarize_finished(rows: list[dict], key: str) -> dict[str, Counter]:
+    groups: dict[str, Counter] = {}
+    for row in rows:
+        if row["tab"] != "Finalizadas":
+            continue
+        name = row[key] or "não informado"
+        result = result_label(row) or "sem resultado"
+        groups.setdefault(name, Counter())[result] += 1
+    return groups
+
+
+def print_stats(store: JobStore) -> None:
+    rows = store.gupy_applications()
+    if not rows:
+        print("Nenhuma candidatura lida ainda. Rode: python -m jobhunter.progress")
+        return
+    print("Reprovada: a empresa avaliou e disse não. Encerrada: a empresa fechou a vaga.")
+    print("O resultado não diz até que etapa você chegou.")
+    for key, title in (("contract", "tipo de contrato"), ("workplace", "modalidade")):
+        print(f"\nFinalizadas por {title}:")
+        groups = summarize_finished(rows, key)
+        for name, counter in sorted(groups.items(), key=lambda item: -sum(item[1].values())):
+            detail = ", ".join(f"{label} {count}" for label, count in counter.most_common())
+            print(f"  {name}: {sum(counter.values())} | {detail}")
+    stages = Counter(
+        f"{r['current']}/{r['total']}"
+        for r in rows
+        if r["tab"] == "Em andamento" and r["current"] is not None
+    )
+    if stages:
+        print("\nEtapa atual: " + ", ".join(f"{s} ({n})" for s, n in stages.items()))
+
+
 def print_report(store: JobStore) -> None:
     rows = store.gupy_applications()
     print(f"\n{len(rows)} candidaturas na sua conta da Gupy:")
     for row in rows:
         stage = f"{row['current']}/{row['total']}" if row["current"] is not None else "-"
         target = row["job_uid"] or f"sem vaga ligada (#{row['application_id']})"
-        result = OUTCOME_STATUS.get(row["outcome"], "")
         company, title = row["company"][:26], row["title"][:36]
         line = f"  {stage:>4} | {company} | {title} | {target}"
+        result = result_label(row)
         print(f"{line} | {result}" if result else line)
-    names = (OUTCOME_STATUS[row["outcome"]] for row in rows if row["outcome"] in OUTCOME_STATUS)
-    results = Counter(names)
+    results = Counter(result_label(row) for row in rows if row["outcome"])
     if results:
         print("\nResultados: " + " | ".join(f"{name} {count}" for name, count in results.items()))
+    known = set(OUTCOME_STATUS) | {""}
+    unknown = sorted({row["outcome"] for row in rows if row["outcome"] not in known})
+    if unknown:
+        print("Textos de resultado que ainda não conheço: " + " | ".join(unknown))
+    blank = sum(1 for row in rows if row["tab"] == "Finalizadas" and not row["outcome"])
+    if blank:
+        print(f"{blank} finalizadas sem nenhum texto de resultado.")
     unlinked = sum(1 for row in rows if not row["job_uid"])
     if unlinked:
         print(f"\n{unlinked} sem vaga ligada: normal para candidaturas feitas fora do sistema.")
@@ -390,6 +436,9 @@ def main(argv: list[str]) -> None:
         job_uid = "" if argv[1] == "-" else argv[1]
         linked = store.link_gupy_application(argv[2], job_uid)
         print("Ligação salva." if linked else "Candidatura não encontrada: rode sem 'link'.")
+        return
+    if argv and argv[0] == "stats":
+        print_stats(store)
         return
     dump = bool(argv) and argv[0] == "dump"
     try:

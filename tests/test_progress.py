@@ -1,4 +1,5 @@
 import sqlite3
+from collections import Counter
 from dataclasses import asdict
 
 from playwright.sync_api import Error as PlaywrightError
@@ -16,7 +17,9 @@ from jobhunter.progress import (
     mark_applied_jobs,
     match_job_uid,
     parse_cards,
+    print_stats,
     record_cards,
+    summarize_finished,
 )
 from jobhunter.storage import JobStore
 
@@ -495,3 +498,52 @@ def test_interrupted_navigation_is_not_fatal():
     page = RacingPage(1, "https://portal.gupy.io/login")
 
     assert not ensure_applications_page(page, ask=lambda message: None)
+
+FINISHED_UNKNOWN = """Minhas candidaturas
+Finalizadas
+
+Você desistiu desse processo
+
+Geopixel
+
+Estágio - Desenvolvimento de Software
+Não informado
+Remoto
+Estágio
+Candidatura 1 de 1.
+"""
+
+
+def test_unknown_result_label_is_kept_as_written():
+    cards, _ = parse_cards(FINISHED_UNKNOWN, "Finalizadas")
+
+    assert cards[0].outcome == "Você desistiu desse processo"
+
+
+def finished_row(contract: str, workplace: str, outcome: str, tab: str = "Finalizadas") -> dict:
+    return {"tab": tab, "contract": contract, "workplace": workplace, "outcome": outcome}
+
+
+def test_summarize_finished_groups_results_and_skips_other_tabs():
+    rows = [
+        finished_row("Estágio", "Remoto", REJECTED),
+        finished_row("Estágio", "Remoto", CLOSED),
+        finished_row("Efetivo", "Remoto", CLOSED),
+        finished_row("Estágio", "Remoto", "", tab="Em andamento"),
+        finished_row("", "Remoto", ""),
+    ]
+
+    groups = summarize_finished(rows, "contract")
+
+    assert groups["Estágio"] == Counter({"Reprovada": 1, "Encerrada": 1})
+    assert groups["Efetivo"] == Counter({"Encerrada": 1})
+    assert groups["não informado"] == Counter({"sem resultado": 1})
+
+
+def test_print_stats_shows_counts(capsys):
+    store = JobStore(":memory:")
+    record_cards(store, [make_card(tab="Finalizadas", contract="Estágio", outcome=REJECTED)])
+
+    print_stats(store)
+
+    assert "Estágio: 1 | Reprovada 1" in capsys.readouterr().out
