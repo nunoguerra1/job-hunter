@@ -42,14 +42,19 @@ def email_record(email_id: str, company: str) -> dict:
     }
 
 
-def test_link_report_shows_matches_and_gaps(capsys):
+def test_link_report_uses_only_jobs_marked_as_applied(capsys):
     store = JobStore(":memory:")
-    job = Job(source="t", external_id="1", title="Estágio Dev", company="Zenvia Jobs", url="u")
-    store.add_new([job])
+    applied = Job(
+        source="t", external_id="1", title="Estágio Dev", company="Zenvia Jobs", url="u"
+    )
+    twin = Job(source="t", external_id="2", title="Outra vaga", company="Zenvia Jobs", url="u")
+    store.add_new([applied, twin])
+    store.set_status("t:1", "applied")
     store.add_emails([email_record("1", "Zenvia Jobs"), email_record("2", "Outra Empresa")])
 
     link_report(store)
     out = capsys.readouterr().out
 
     assert "-> t:1" in out
-    assert "sem correspondência única" in out
+    assert "1 de 2 e-mails ligados" in out
+    assert "Outra Empresa" not in out

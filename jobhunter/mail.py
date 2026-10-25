@@ -4,6 +4,7 @@ from email.utils import parsedate_to_datetime
 
 from jobhunter.email_status import Kind, classify_email, guess_company
 from jobhunter.gmail import get_service, my_address, recent_headers, sender_domain, sender_name
+from jobhunter.review import APPLIED
 from jobhunter.sheets import match_job
 from jobhunter.storage import JobStore
 
@@ -69,18 +70,30 @@ def sync_mail_to_db(limit: int = 200) -> None:
 
 
 def link_report(store: JobStore) -> None:
-    """Mostra a qual vaga cada e-mail guardado se liga (só quando a ligação é única)."""
+    """Mostra a qual vaga enviada cada e-mail se liga: é o mesmo critério do 'sync'."""
     emails = store.emails()
     if not emails:
         print("Nenhum e-mail no banco. Rode: python -m jobhunter.mail sync")
         return
-    jobs = store.all()
+    statuses = store.statuses()
+    jobs = [job for job in store.all() if statuses.get(job.uid) == APPLIED]
+    if not jobs:
+        print("Nenhuma vaga marcada como enviada. Veja: python -m jobhunter.apply status")
+        return
     by_uid = {job.uid: job for job in jobs}
+    print(f"Ligando os e-mails às {len(jobs)} vagas marcadas como enviadas:\n")
+    linked = 0
     for email in emails:
         uid = match_job(email["company"], email["subject"], jobs)
-        target = f"{uid} | {by_uid[uid].title[:40]}" if uid else "sem correspondência única"
+        if not uid:
+            continue
+        linked += 1
         label = email["company"] or email["sender"]
-        print(f"{email['sent_at'][:10]} | {email['kind']} | {label[:30]} -> {target}")
+        print(
+            f"{email['sent_at'][:10]} | {email['kind']} | {label[:30]} -> {uid} | "
+            f"{by_uid[uid].title[:40]}"
+        )
+    print(f"\n{linked} de {len(emails)} e-mails ligados às vagas enviadas.")
 
 
 def main(argv: list[str]) -> None:
