@@ -6,7 +6,7 @@ from jobhunter.cost import load_costs
 from jobhunter.filters import prefilter
 from jobhunter.mail_status import sync_mail_status
 from jobhunter.profile import load_profile
-from jobhunter.progress_sheet import sync_gupy_tab, sync_progress
+from jobhunter.progress_sheet import sync_gupy_tab, sync_outcomes, sync_progress
 from jobhunter.review import APPLIED
 from jobhunter.sheets import (
     mark_expired,
@@ -50,6 +50,7 @@ def main(min_score: int = MIN_SCORE, rebuild: bool = False) -> None:
     progressed = sync_mail_status(ws, emails, applied_jobs)
     style_sheet(ws)
     staged = sync_progress(ws, applications)
+    finished = sync_outcomes(ws, applications)
     print(f"{len(entries)} vagas elegíveis (nota >= {min_score}); {added} novas na planilha.")
     if expired:
         print(f"{expired} vagas marcadas como Encerrada (prazo vencido).")
@@ -59,6 +60,8 @@ def main(min_score: int = MIN_SCORE, rebuild: bool = False) -> None:
         print(f"{progressed} vagas com andamento atualizado a partir dos e-mails.")
     if staged:
         print(f"{staged} vagas com a etapa atual (ex.: 1/7) atualizada pela Gupy.")
+    if finished:
+        print(f"{finished} vagas com o resultado final (reprovada ou encerrada) vindo da Gupy.")
 
     if emails:
         mail_ws = open_worksheet("Candidaturas")

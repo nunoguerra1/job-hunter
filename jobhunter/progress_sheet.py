@@ -2,11 +2,13 @@ import re
 
 import gspread
 
-from jobhunter.sheets import ETAPAS_COL, ID_COL
+from jobhunter.mail_status import UPDATABLE
+from jobhunter.progress import OUTCOME_STATUS
+from jobhunter.sheets import ETAPAS_COL, ID_COL, STATUS_COL
 
 GUPY_HEADERS = [
     "Empresa", "Vaga", "Local", "Modalidade", "Contrato", "Etapa", "Aba da Gupy",
-    "Vaga na planilha", "ID da candidatura",
+    "Resultado", "Vaga na planilha", "ID da candidatura",
 ]
 STAGE_COL = GUPY_HEADERS.index("Etapa")
 _SYSTEM_STAGE = re.compile(r"\d+/\d+")
@@ -36,6 +38,26 @@ def sync_progress(ws: gspread.Worksheet, applications: list[dict]) -> int:
     return len(updates)
 
 
+def sync_outcomes(ws: gspread.Worksheet, applications: list[dict]) -> int:
+    """Reprovada ou Encerrada, vindo da aba Finalizadas da Gupy (só sobre status do sistema)."""
+    labels = {
+        a["job_uid"]: OUTCOME_STATUS[a["outcome"]]
+        for a in applications
+        if a["job_uid"] and a["outcome"] in OUTCOME_STATUS
+    }
+    letter = chr(ord("A") + STATUS_COL)
+    updates = []
+    for number, row in enumerate(ws.get_all_values()[1:], start=2):
+        if len(row) <= max(ID_COL, STATUS_COL):
+            continue
+        label = labels.get(row[ID_COL])
+        if label and row[STATUS_COL] in UPDATABLE and row[STATUS_COL] != label:
+            updates.append({"range": f"{letter}{number}", "values": [[label]]})
+    if updates:
+        ws.batch_update(updates)
+    return len(updates)
+
+
 def _gupy_row(application: dict) -> list[str]:
     return [
         application["company"],
@@ -45,6 +67,7 @@ def _gupy_row(application: dict) -> list[str]:
         application["contract"],
         stage_text(application),
         application["tab"],
+        application["outcome"],
         application["job_uid"],
         application["application_id"],
     ]
