@@ -459,6 +459,8 @@ a aba da Gupy (em andamento, banco de talentos ou finalizadas) e, quando existe,
 
 Inclui Fase atual e Próxima fase, lidas por python -m jobhunter.phases. A fase atual assume que o n de n/m é o número da fase.
 
+Quando a etapa é `0/n`, a coluna Fase atual mostra `Candidatura incompleta`: ela foi iniciada e não finalizada, e a empresa só avalia candidaturas finalizadas.
+
 ---
 
 ## 7. Status de uma candidatura
@@ -630,6 +632,7 @@ planilha). Ajuste os números com a sua realidade.
 | `playwright` reclama de navegador não instalado | Chromium não foi baixado | `python -m playwright install chromium` |
 | O Status da planilha não mostra o andamento do e-mail | Os e-mails ainda não estão no banco, ou o nome da empresa não bate com uma única vaga | `python -m jobhunter.mail sync`, depois `python -m jobhunter.mail link` para ver cada ligação, e `python -m jobhunter.sync` |
 | `.phases` diz "nenhuma fase reconhecida" | A página de acompanhamento não carregou a lista de fases, ou redirecionou para o login | O comando mostra onde parou e salva o texto (com máscara de dados pessoais) em `data/pages/fases_<id>.txt`. Leia o arquivo antes de compartilhar |
+| A Gupy mostra `0/n` numa candidatura | Ela foi iniciada, mas as perguntas ainda não foram todas respondidas | Abra `"Ver andamento"` na Gupy e conclua. O sistema não marca essas como enviadas |
 
 ---
 
