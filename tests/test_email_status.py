@@ -90,3 +90,12 @@ def test_guess_company_from_linkedin_subject():
 
 def test_guess_company_platform_domain_without_name_is_unknown():
     assert guess_company("", "gupy.com.br", "Algo", "") == ""
+
+def test_reminder_to_finish_the_application_is_not_an_unclear_e_mail():
+    snippet = (
+        "Olá Nuno, tudo bem? Você se inscreveu na vaga Desenvolvedor Júnior há três dias, "
+        "mas ainda não finalizou a sua candidatura."
+    )
+
+    assert classify_email("Retorno do Processo Seletivo", snippet, GUPY, ME) == Kind.INCOMPLETE
+    assert classify_email("Finalize sua candidatura!", "", GUPY, ME) == Kind.INCOMPLETE

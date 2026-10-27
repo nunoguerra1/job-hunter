@@ -12,6 +12,7 @@ class Kind(StrEnum):
     REJECTED = "reprovada"
     ENDED = "encerrada"
     SENT = "enviada por e-mail"
+    INCOMPLETE = "incompleta"
     UNKNOWN = "verificar"
     IRRELEVANT = "irrelevante"
 
@@ -33,6 +34,7 @@ _RULES: list[tuple[Kind, tuple[str, ...]]] = [
         "convocacao", "assessment", "conclua as etapas", "confirmar sua presenca",
         "confirme sua presenca", "convite para entrevista", "entrevista agendada", "agende",
     )),
+    (Kind.INCOMPLETE, ("finalize sua candidatura", "finalizar sua candidatura")),
     (Kind.RECEIVED, (
         "inscricao recebida", "candidatura recebida", "recebemos sua candidatura",
         "candidatura efetuada", "candidatura foi enviada", "candidatura enviada",
@@ -60,6 +62,8 @@ def _ignored(domain: str) -> bool:
 def _refine(snippet: str) -> Kind:
     """Assuntos genéricos: o trecho do e-mail decide o que ele realmente é."""
     text = normalize(snippet)
+    if "ainda nao finalizou" in text:
+        return Kind.INCOMPLETE
     if "nova mensagem referente" in text:
         return Kind.MESSAGE
     if any(t in text for t in ("infelizmente", "seguiremos com outros", "outros candidatos")):
