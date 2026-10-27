@@ -5,6 +5,7 @@ from jobhunter.digest import (
     AWAITING_TITLE,
     FRESH_TITLE,
     INCOMPLETE_TITLE,
+    NEXT_TEST_TITLE,
     SOON_TITLE,
     WAITING_TITLE,
     build_digest,
@@ -116,3 +117,21 @@ def test_digest_lists_applications_without_answer(tmp_path):
 
     assert f"{WAITING_TITLE} (1):" in text
     assert "15 dias | Estágio Enviado" in text
+
+def test_digest_flags_an_upcoming_test_phase(tmp_path):
+    store = JobStore(":memory:")
+    store.save_gupy_applications(
+        [
+            {
+                "application_id": "1", "company": "Nomus", "title": "Estágio Software",
+                "location": "", "workplace": "Remoto", "contract": "Estágio", "current": 1,
+                "total": 4, "tab": "Em andamento", "job_uid": "", "outcome": "",
+            }
+        ]
+    )
+    store.save_gupy_phases("1", ["Currículo", "Prova técnica", "Entrevista", "Final"])
+
+    text = build_digest(store, today=TODAY, output=tmp_path)
+
+    assert f"{NEXT_TEST_TITLE} (1):" in text
+    assert "Nomus | próxima: Prova técnica (1/4)" in text

@@ -5,9 +5,10 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from jobhunter.filters import is_open
+from jobhunter.filters import is_open, normalize
 from jobhunter.followups import due_followups
 from jobhunter.models import Job
+from jobhunter.phases import current_and_next
 from jobhunter.progress import incomplete_applications
 from jobhunter.review import APPROVED, AWAITING
 from jobhunter.storage import JobStore
@@ -18,17 +19,19 @@ GOOD_SCORE = 80
 SOON_DAYS = 3
 FOLLOWUP_DAYS = 10
 MAX_ITEMS = 5
+TEST_WORDS = ("prova", "teste", "case", "desafio", "raciocinio", "tecnic", "dinamica")
 
 AWAITING_TITLE = "Aguardando a sua decisão no Telegram"
 APPROVED_TITLE = "Aprovadas, ainda não enviadas"
 SOON_TITLE = "Prazo nos próximos 3 dias"
 INCOMPLETE_TITLE = "Candidaturas incompletas na Gupy (0/n)"
+NEXT_TEST_TITLE = "Próxima fase com prova ou teste"
 WAITING_TITLE = "Sem resposta há 10 dias ou mais"
 FRESH_TITLE = "Boas vagas (nota 80+) sem candidatura preparada"
 
 
 def _line(job: Job) -> str:
-    return f"{job.title[:60]} | {job.company[:30]}"
+    return f"{job.title[:70]} | {job.company[:30]}"
 
 
 def _clip(items: list[str]) -> list[str]:
@@ -38,6 +41,21 @@ def _clip(items: list[str]) -> list[str]:
 
 def _with_status(jobs: list[Job], statuses: dict[str, str], wanted: str) -> list[Job]:
     return [job for job in jobs if statuses.get(job.uid) == wanted]
+
+
+def upcoming_tests(store: JobStore) -> list[str]:
+    """Candidaturas em andamento cuja próxima fase parece uma prova ou teste."""
+    names_by_id = store.gupy_phases()
+    items = []
+    for row in store.gupy_applications():
+        if row["tab"] != "Em andamento":
+            continue
+        names = names_by_id.get(row["application_id"], [])
+        _here, ahead = current_and_next(row["current"], names)
+        if ahead and any(word in normalize(ahead) for word in TEST_WORDS):
+            stage = f"{row['current']}/{row['total']}"
+            items.append(f"{row['company'][:30]} | próxima: {ahead} ({stage})")
+    return items
 
 
 def build_sections(
@@ -54,7 +72,7 @@ def build_sections(
     due_soon.sort(key=lambda job: job.deadline)
 
     incomplete = [
-        f"{row['company'][:30]} | {row['title'][:50]}"
+        f"{row['company'][:30]} | {row['title'][:60]}"
         for row in incomplete_applications(store.gupy_applications())
     ]
     waiting = [
@@ -78,6 +96,7 @@ def build_sections(
         (APPROVED_TITLE, [_line(job) for job in approved]),
         (SOON_TITLE, [f"prazo {job.deadline:%d/%m} | {_line(job)}" for job in due_soon]),
         (INCOMPLETE_TITLE, incomplete),
+        (NEXT_TEST_TITLE, upcoming_tests(store)),
         (WAITING_TITLE, waiting),
         (FRESH_TITLE, [f"{score} | {_line(job)} | {job.uid}" for score, job in fresh]),
     ]
