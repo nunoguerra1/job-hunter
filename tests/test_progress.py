@@ -14,6 +14,7 @@ from jobhunter.progress import (
     has_next_page,
     hosts_from_links,
     ids_in_order,
+    incomplete_applications,
     mark_applied_jobs,
     match_job_uid,
     parse_cards,
@@ -547,3 +548,22 @@ def test_print_stats_shows_counts(capsys):
     print_stats(store)
 
     assert "Estágio: 1 | Reprovada 1" in capsys.readouterr().out
+
+def test_unfinished_application_is_not_marked_as_applied():
+    store = JobStore(":memory:")
+    store.add_new([gupy_job("1", "Zenvia Jobs", "Dev Júnior")])
+    record_cards(store, [make_card(host="zenvia.gupy.io", current=0, total=4)])
+
+    assert mark_applied_jobs(store) == []
+    assert store.statuses() == {}
+
+
+def test_incomplete_applications_are_the_zero_of_n_in_progress():
+    rows = [
+        {"tab": "Em andamento", "current": 0},
+        {"tab": "Em andamento", "current": 1},
+        {"tab": "Em andamento", "current": None},
+        {"tab": "Finalizadas", "current": 0},
+    ]
+
+    assert incomplete_applications(rows) == [rows[0]]

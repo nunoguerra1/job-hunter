@@ -1,4 +1,10 @@
-from jobhunter.phases import current_and_next, parse_phases, save_debug, wait_for_phases
+from jobhunter.phases import (
+    current_and_next,
+    parse_phases,
+    save_debug,
+    stage_label,
+    wait_for_phases,
+)
 from jobhunter.storage import JobStore
 
 ZENVIA = """Gupy
@@ -123,3 +129,7 @@ def test_save_debug_redacts_personal_data(tmp_path):
     assert path.name == "fases_10.txt"
     assert "Nuno" not in content
     assert "gmail" not in content
+
+def test_stage_label_handles_quick_applications():
+    assert stage_label({"current": None, "total": None}) == "candidatura rápida"
+    assert stage_label({"current": 1, "total": 7}) == "1/7"

@@ -107,3 +107,11 @@ def test_sync_gupy_tab_rewrites_everything_as_text():
     assert ws.values[1][7] == "Pré-entrevista"
     assert ws.values[1][9] == REJECTED
     assert "F2:F" in ws.formats
+
+def test_gupy_tab_flags_unfinished_applications():
+    ws = FakeWorksheet()
+
+    sync_gupy_tab(ws, [application(current=0, total=4)], {"10": ["Currículo", "Entrevista"]})
+
+    assert ws.values[1][6] == "Candidatura incompleta"
+    assert ws.values[1][7] == "Currículo"

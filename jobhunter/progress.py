@@ -219,12 +219,14 @@ def record_cards(store: JobStore, cards: list[Card]) -> None:
 
 
 def mark_applied_jobs(store: JobStore) -> list[str]:
-    """Candidatura que aparece na sua lista da Gupy é candidatura enviada."""
+    """Candidatura que aparece na sua lista da Gupy (e foi finalizada) é candidatura enviada."""
     statuses = store.statuses()
     marked = []
     for row in store.gupy_applications():
         uid = row["job_uid"]
-        if uid and row["tab"] != TALENT_POOL and statuses.get(uid) != APPLIED:
+        if not uid or row["tab"] == TALENT_POOL or row["current"] == 0:
+            continue  # 0/n: a candidatura foi iniciada, mas ainda não foi finalizada
+        if statuses.get(uid) != APPLIED:
             store.set_status(uid, APPLIED)
             statuses[uid] = APPLIED
             marked.append(uid)
@@ -330,6 +332,9 @@ def dump_tabs(
         saved.append(path)
     return saved
 
+def incomplete_applications(rows: list[dict]) -> list[dict]:
+    """Em andamento com 0/n: pelo que vi na Vendemmia, a candidatura ainda não foi finalizada."""
+    return [row for row in rows if row["tab"] == "Em andamento" and row["current"] == 0]
 
 def result_label(row: dict) -> str:
     """Resultado em palavras curtas; texto que ainda não conheço aparece como foi escrito."""
@@ -389,6 +394,14 @@ def print_report(store: JobStore) -> None:
     blank = sum(1 for row in rows if row["tab"] == "Finalizadas" and not row["outcome"])
     if blank:
         print(f"{blank} finalizadas sem nenhum texto de resultado.")
+        pending = incomplete_applications(rows)
+    if pending:
+        print(f"\nATENÇÃO: {len(pending)} candidatura(s) com 0/n, que parecem não finalizadas:")
+        for row in pending:
+            print(f"  {row['company'][:28]} | {row['title'][:44]} | #{row['application_id']}")
+        print("A empresa só avalia candidaturas finalizadas. Em 'Minhas candidaturas', abra")
+        print("'Ver andamento' e conclua. (Regra deduzida da Vendemmia: 0/4 até as perguntas")
+        print("serem respondidas. Se for um falso alarme, me avise.)")
     unlinked = sum(1 for row in rows if not row["job_uid"])
     if unlinked:
         print(f"\n{unlinked} sem vaga ligada: normal para candidaturas feitas fora do sistema.")

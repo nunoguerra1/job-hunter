@@ -65,6 +65,10 @@ def save_debug(
     path.write_text(redact(text, person_names), encoding="utf-8")
     return path
 
+def stage_label(row: dict) -> str:
+    if row["current"] is None:
+        return "candidatura rápida"
+    return f"{row['current']}/{row['total']}"
 
 def read_phases(page, store: JobStore, person_names: list[str], pause: float = 1.0) -> int:
     hosts = hosts_from_links(page.evaluate(LINKS_JS))  # aba "Em andamento", que abre primeiro
@@ -98,7 +102,7 @@ def read_phases(page, store: JobStore, person_names: list[str], pause: float = 1
         store.save_gupy_phases(application_id, names)
         here, ahead = current_and_next(row["current"], names)
         note = "" if row["total"] in (None, len(names)) else f" (a Gupy diz {row['total']})"
-        stage = f"{row['current']}/{row['total']}"
+        stage = stage_label(row)
         print(f"  {company} | {stage} | agora: {here or '-'} | próxima: {ahead or '-'}{note}")
         read += 1
         time.sleep(pause)

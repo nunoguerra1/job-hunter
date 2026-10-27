@@ -62,6 +62,8 @@ def sync_outcomes(ws: gspread.Worksheet, applications: list[dict]) -> int:
 def _gupy_row(application: dict, phases: dict[str, list[str]]) -> list[str]:
     names = phases.get(application["application_id"], [])
     here, ahead = current_and_next(application["current"], names)
+    if application["current"] == 0 and application["tab"] == "Em andamento":
+        here = "Candidatura incompleta"
     return [
         application["company"],
         application["title"],
