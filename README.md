@@ -457,6 +457,8 @@ Todas as candidaturas da sua conta na Gupy (inclusive as feitas fora do sistema)
 a aba da Gupy (em andamento, banco de talentos ou finalizadas) e, quando existe, a vaga ligada.
 É gerada do zero a cada `sync`: não edite nela.
 
+Inclui Fase atual e Próxima fase, lidas por python -m jobhunter.phases. A fase atual assume que o n de n/m é o número da fase.
+
 ---
 
 ## 7. Status de uma candidatura
@@ -471,6 +473,7 @@ a aba da Gupy (em andamento, banco de talentos ou finalizadas) e, quando existe,
 | `applied` | Você informou que enviou |
 | `expired` | O prazo passou antes de você decidir |
 | `closed` | A página da vaga mostrou "inscrições encerradas" |
+| `Congelada` | aos estados vindos da aba Finalizadas" |
 
 **Na planilha** (coluna Status):
 
@@ -498,7 +501,8 @@ Todos começam com `python -m jobhunter`.
 | `.prepare <id>` | Prepara uma vaga específica (ex.: `gupy:12345`). Gasta 1 requisição de IA |
 | `.make_cv [id]` | Gera os PDFs que faltam (ou refaz o de uma vaga) |
 | `.sync [nota] [--rebuild]` | Atualiza a planilha. Nota mínima padrão 60 |
-| `.mail sync [qtd]` | Guarda os e-mails de candidatura no banco |
+| `.mail sync [qtd] [--refresh]` | Guarda os e-mails de candidatura no banco. Com --refresh, regrava os já guardados (use depois de uma correção na classificação) |
+| `.phases` | Lê a lista de fases de cada candidatura em andamento (rode depois de .progress) |
 | `.mail inspect [qtd] [--snippets] [--all]` | Só mostra a classificação dos e-mails, sem gravar |
 | `.bot [--notify-only] [--resend <id>]` | Bot do Telegram. `--notify-only` só envia. `--resend` reenvia uma candidatura já preparada |
 | `.telegram` | Descobre o seu chat id |
