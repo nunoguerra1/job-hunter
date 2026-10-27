@@ -220,7 +220,7 @@ cd D:\caminho\para\job-hunter
 python -m jobhunter.daily
 ```
 
-Leva alguns minutos. Ele roda 6 etapas em sequência e imprime um bloco para cada uma:
+Leva alguns minutos. Ele roda 7 etapas em sequência e imprime um bloco para cada uma:
 
 1. **Coleta de vagas:** mostra quantas vagas vieram de cada fonte e quantas são novas. Depois mostra
    quantas passaram no pré-filtro e por que as outras foram descartadas.
@@ -231,6 +231,7 @@ Leva alguns minutos. Ele roda 6 etapas em sequência e imprime um bloco para cad
    talentos") e cria a pasta `output/<vaga>/` com o texto e o PDF.
 5. **Planilha:** atualiza as abas "Vagas" e "Candidaturas".
 6. **Telegram:** envia as candidaturas novas para revisão (os botões só funcionam no Passo 3).
+7. **Resumo do dia:** manda ao seu Telegram o que precisa de ação (aguardando decisão, aprovadas não enviadas, prazos em até 3 dias, incompletas, sem resposta há 10 dias, boas vagas sem candidatura). Ele só lê o banco: para atualizar etapas e resultados da Gupy, rode antes `python -m jobhunter.progress`.
 
 No fim ele imprime `Resumo: tudo certo.` ou `falhou em ...`. **Um passo que falha não derruba os
 seguintes.** Erros temporários de IA (503) aparecem como `ERRO no lote` e são tentados de novo na
@@ -395,6 +396,7 @@ piora a qualidade e aumenta o risco de a plataforma estranhar o uso.
 | Ao querer mais vagas home office | `python -m jobhunter.boards find <link de uma vaga>` | Descobre o código do quadro Greenhouse ou Lever de uma empresa |
 | Se a planilha ficar bagunçada | `python -m jobhunter.sync --rebuild` | Reconstrói a planilha (**apaga edições manuais** de Status e Etapas) |
 | Depois de se candidatar na Gupy | `python -m jobhunter.progress` e `python -m jobhunter.sync` | Preenche a coluna Etapas e a aba Gupy |
+| Toda semana | `python -m jobhunter.progress` e `python -m jobhunter.phases` | Atualiza etapas, fases e resultados da Gupy (abrem o navegador, por isso não estão no daily) |
 
 ### Rodar o `daily` sozinho (opcional)
 
@@ -526,6 +528,7 @@ Todos começam com `python -m jobhunter`.
 | `.progress dump` | Salva o texto de cada aba de "Minhas candidaturas" (com máscara de dados pessoais) em `data/pages/` |
 | `.progress link - <número da candidatura>` | Desfaz uma ligação errada entre uma candidatura da Gupy e uma vaga |
 | `.progress stats` | Resume as candidaturas finalizadas por tipo de contrato e modalidade (reprovada x encerrada) e as em andamento por etapa |
+| `.digest [--send]` | Imprime o resumo do dia. Com `--send`, manda ao Telegram |
 
 ---
 
