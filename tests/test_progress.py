@@ -18,6 +18,7 @@ from jobhunter.progress import (
     mark_applied_jobs,
     match_job_uid,
     parse_cards,
+    print_report,
     print_stats,
     record_cards,
     summarize_finished,
@@ -567,3 +568,19 @@ def test_incomplete_applications_are_the_zero_of_n_in_progress():
     ]
 
     assert incomplete_applications(rows) == [rows[0]]
+
+def test_report_flags_unfinished_applications(capsys):
+    store = JobStore(":memory:")
+    record_cards(
+        store,
+        [
+            make_card(current=0, total=6),
+            make_card(application_id="11", tab="Finalizadas", outcome=REJECTED),
+        ],
+    )
+
+    print_report(store)
+    out = capsys.readouterr().out
+
+    assert "ATENÇÃO: 1 candidatura(s) com 0/n" in out
+    assert "Reprovada" in out

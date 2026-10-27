@@ -394,14 +394,13 @@ def print_report(store: JobStore) -> None:
     blank = sum(1 for row in rows if row["tab"] == "Finalizadas" and not row["outcome"])
     if blank:
         print(f"{blank} finalizadas sem nenhum texto de resultado.")
-        pending = incomplete_applications(rows)
+    pending = incomplete_applications(rows)
     if pending:
-        print(f"\nATENÇÃO: {len(pending)} candidatura(s) com 0/n, que parecem não finalizadas:")
+        print(f"\nATENÇÃO: {len(pending)} candidatura(s) com 0/n:")
         for row in pending:
             print(f"  {row['company'][:28]} | {row['title'][:44]} | #{row['application_id']}")
-        print("A empresa só avalia candidaturas finalizadas. Em 'Minhas candidaturas', abra")
-        print("'Ver andamento' e conclua. (Regra deduzida da Vendemmia: 0/4 até as perguntas")
-        print("serem respondidas. Se for um falso alarme, me avise.)")
+        print("A Vendemmia ficou em 0/4 até você terminar as perguntas e enviar. Confira")
+        print("em 'Ver andamento' se falta algo nesta(s); a empresa só avalia as finalizadas.")
     unlinked = sum(1 for row in rows if not row["job_uid"])
     if unlinked:
         print(f"\n{unlinked} sem vaga ligada: normal para candidaturas feitas fora do sistema.")
