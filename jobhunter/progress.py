@@ -30,6 +30,7 @@ LINKS_JS = """
 OUTCOME_STATUS = {
     "Você não avançou nesse processo": "Reprovada",
     "Vaga encerrada pela empresa": "Encerrada",
+    "Vaga congelada pela empresa": "Congelada",
 }
 
 _ID = re.compile(r"^Ver andamento da candidatura\s*(\d+)$")
