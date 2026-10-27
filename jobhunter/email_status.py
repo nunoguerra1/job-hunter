@@ -45,6 +45,7 @@ _RULES: list[tuple[Kind, tuple[str, ...]]] = [
 
 _ADDRESS = re.compile(r"([\w.+-]+@[\w.-]+)")
 _GUPY_MESSAGE = re.compile(r"^(.+?)\s+-\s+.+?Nova mensagem referente", re.IGNORECASE)
+_SENT_TO = re.compile(r"candidatura foi enviada (?:à|a|ao|para)\s+(.+?)\s*$", re.IGNORECASE)
 
 
 def address_of(from_header: str) -> str:
@@ -84,12 +85,17 @@ def classify_email(
 
 
 def guess_company(sender_name: str, sender_domain: str, subject: str, snippet: str) -> str:
-    """Empresa estimada (pode errar): trecho da Gupy, assunto do Greenhouse ou remetente."""
+    """Empresa estimada (pode errar): trecho da Gupy, assunto ou nome do remetente."""
     match = _GUPY_MESSAGE.match(snippet.strip())
     if match:
         return match.group(1).strip()
     if "greenhouse" in normalize(sender_domain) and "|" in subject:
         return subject.split("|")[0].strip()
-    if any(p in normalize(f"{sender_name} {sender_domain}") for p in PLATFORMS):
-        return ""
-    return sender_name or sender_domain
+    sent = _SENT_TO.search(subject)
+    if sent:
+        return sent.group(1).strip()
+    if any(p in normalize(sender_name) for p in PLATFORMS):
+        return ""  # o remetente é a própria plataforma (Gupy, LinkedIn...): não diz a empresa
+    if sender_name:
+        return sender_name  # a plataforma envia em nome da empresa: o nome é a empresa
+    return "" if any(p in normalize(sender_domain) for p in PLATFORMS) else sender_domain

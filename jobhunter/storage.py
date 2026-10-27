@@ -126,18 +126,19 @@ class JobStore:
         self.conn.execute("DELETE FROM applications WHERE uid = ?", (uid,))
         self.conn.commit()
 
-    def add_emails(self, rows: list[dict]) -> int:
-        added = 0
+    def add_emails(self, rows: list[dict], replace: bool = False) -> int:
+        verb = "INSERT OR REPLACE" if replace else "INSERT OR IGNORE"
+        written = 0
         for row in rows:
             cursor = self.conn.execute(
-                "INSERT OR IGNORE INTO emails (id, thread, sent_at, kind, sender, subject, company)"
+                f"{verb} INTO emails (id, thread, sent_at, kind, sender, subject, company)"
                 " VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (row["id"], row["thread"], row["sent_at"], row["kind"], row["sender"],
                  row["subject"], row["company"]),
             )
-            added += cursor.rowcount
+            written += cursor.rowcount
         self.conn.commit()
-        return added
+        return written
 
     def emails(self) -> list[dict]:
         cursor = self.conn.execute(

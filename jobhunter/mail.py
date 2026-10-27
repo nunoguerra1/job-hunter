@@ -58,12 +58,13 @@ def inspect_mail(limit: int = 60, snippets: bool = False, show_all: bool = False
     print(f"\n{len(rows) - ignored} relevantes; {ignored} ignorados (propaganda e alertas).")
 
 
-def sync_mail_to_db(limit: int = 200) -> None:
+def sync_mail_to_db(limit: int = 200, refresh: bool = False) -> None:
     service = get_service()
     records = to_records(recent_headers(service, max_results=limit), my_address(service))
     store = JobStore()
-    added = store.add_emails(records)
-    print(f"{len(records)} e-mails relevantes; {added} novos no banco.")
+    written = store.add_emails(records, replace=refresh)
+    label = "atualizados" if refresh else "novos"
+    print(f"{len(records)} e-mails relevantes; {written} {label} no banco.")
     unclear = [r for r in records if r["kind"] in {Kind.UNKNOWN.value, Kind.MESSAGE.value}]
     for record in unclear:
         print(f"  abra e leia: {record['kind']} | {record['company'] or record['sender']}")
@@ -102,13 +103,13 @@ def main(argv: list[str]) -> None:
     if argv and argv[0] == "inspect":
         inspect_mail(limit or 60, snippets="--snippets" in options, show_all="--all" in options)
     elif argv and argv[0] == "sync":
-        sync_mail_to_db(limit or 200)
+        sync_mail_to_db(limit or 200, refresh="--refresh" in options)
     elif argv and argv[0] == "link":
         link_report(JobStore())
     else:
         print(
             "Uso: python -m jobhunter.mail "
-            "[inspect [qtd] [--snippets] [--all] | sync [qtd] | link]"
+            "[inspect [qtd] [--snippets] [--all] | sync [qtd] [--refresh] | link]"
         )
 
 

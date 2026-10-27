@@ -75,3 +75,18 @@ def test_guess_company_uses_sender_name():
     assert guess_company("ITAU UNIBANCO S.A.", "itau.com.br", "Reprovação", "") == (
         "ITAU UNIBANCO S.A."
     )
+
+def test_guess_company_uses_the_name_when_a_platform_sends_for_the_company():
+    name = "Vendemmia Logística Integrada"
+
+    assert guess_company(name, "gupy.com.br", "Inscrição recebida", "") == name
+
+
+def test_guess_company_from_linkedin_subject():
+    subject = "Nuno, sua candidatura foi enviada à Infinite Cloud"
+
+    assert guess_company("LinkedIn", "linkedin.com", subject, "") == "Infinite Cloud"
+
+
+def test_guess_company_platform_domain_without_name_is_unknown():
+    assert guess_company("", "gupy.com.br", "Algo", "") == ""

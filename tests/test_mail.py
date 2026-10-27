@@ -58,3 +58,29 @@ def test_link_report_uses_only_jobs_marked_as_applied(capsys):
     assert "-> t:1" in out
     assert "1 de 2 e-mails ligados" in out
     assert "Outra Empresa" not in out
+
+def test_gupy_e_mail_keeps_the_company_name():
+    rows = [
+        {
+            "id": "9",
+            "thread": "t",
+            "from": "Vendemmia Logística Integrada <no-reply@gupy.com.br>",
+            "subject": "Inscrição recebida para a vaga Desenvolvedor Júnior",
+            "date": "Thu, 22 Oct 2026 10:00:00 -0300",
+            "snippet": "",
+        }
+    ]
+
+    records = to_records(rows, "eu@gmail.com")
+
+    assert records[0]["company"] == "Vendemmia Logística Integrada"
+
+
+def test_refresh_replaces_the_stored_company():
+    store = JobStore(":memory:")
+    store.add_emails([email_record("1", "")])
+    fixed = email_record("1", "Zenvia Jobs")
+
+    assert store.add_emails([fixed]) == 0
+    assert store.add_emails([fixed], replace=True) == 1
+    assert store.emails()[0]["company"] == "Zenvia Jobs"
