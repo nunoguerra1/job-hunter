@@ -3,7 +3,7 @@ from collections.abc import Callable
 
 from dotenv import load_dotenv
 
-from jobhunter import mail, prepare, score, sync
+from jobhunter import digest, mail, prepare, score, sync
 from jobhunter.__main__ import collect, summarize
 from jobhunter.bot import main as notify
 from jobhunter.storage import JobStore
@@ -22,6 +22,7 @@ STEPS: list[tuple[str, str, Callable[[], None]]] = [
     ("prepare", "Candidaturas (3 melhores)", lambda: prepare.main("3")),
     ("sync", "Planilha", sync.main),
     ("telegram", "Telegram (só envia)", lambda: notify(notify_only=True)),
+    ("digest", "Resumo do dia (Telegram)", lambda: digest.main(["--send"])),
 ]
 
 
