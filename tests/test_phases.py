@@ -1,4 +1,4 @@
-from jobhunter.phases import current_and_next, parse_phases
+from jobhunter.phases import current_and_next, parse_phases, save_debug, wait_for_phases
 from jobhunter.storage import JobStore
 
 ZENVIA = """Gupy
@@ -74,3 +74,52 @@ def test_phases_roundtrip():
     store.save_gupy_phases("10", NAMES)
 
     assert store.gupy_phases() == {"10": NAMES}
+
+class SlowPage:
+    """Página que ainda está montando: devolve um texto diferente a cada leitura."""
+
+    url = "https://zenvia.gupy.io/candidates/applications/1"
+
+    def __init__(self, texts):
+        self.texts = list(texts)
+        self.calls = 0
+
+    def wait_for_load_state(self, state, timeout):
+        pass
+
+    def wait_for_timeout(self, ms):
+        pass
+
+    def evaluate(self, script):
+        text = self.texts[min(self.calls, len(self.texts) - 1)]
+        self.calls += 1
+        return text
+
+    def title(self):
+        return "Gupy"
+
+
+def test_wait_for_phases_waits_for_the_list_to_render():
+    page = SlowPage(["Carregando...", ZENVIA])
+
+    names, text = wait_for_phases(page, tries=5)
+
+    assert names == NAMES
+    assert page.calls == 2
+    assert "Currículo" in text
+
+
+def test_wait_for_phases_gives_up_with_the_last_text():
+    page = SlowPage(["Entre com seu e-mail"])
+
+    assert wait_for_phases(page, tries=3) == ([], "Entre com seu e-mail")
+    assert page.calls == 3
+
+
+def test_save_debug_redacts_personal_data(tmp_path):
+    path = save_debug("10", "Olá Nuno, nuno@gmail.com", ["Nuno"], tmp_path)
+    content = path.read_text(encoding="utf-8")
+
+    assert path.name == "fases_10.txt"
+    assert "Nuno" not in content
+    assert "gmail" not in content

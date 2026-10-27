@@ -629,6 +629,7 @@ planilha). Ajuste os números com a sua realidade.
 | A vaga "sumiu" do `apply list` | Foi marcada como enviada, ou o prazo venceu | Rode `apply status` |
 | `playwright` reclama de navegador não instalado | Chromium não foi baixado | `python -m playwright install chromium` |
 | O Status da planilha não mostra o andamento do e-mail | Os e-mails ainda não estão no banco, ou o nome da empresa não bate com uma única vaga | `python -m jobhunter.mail sync`, depois `python -m jobhunter.mail link` para ver cada ligação, e `python -m jobhunter.sync` |
+| `.phases` diz "nenhuma fase reconhecida" | A página de acompanhamento não carregou a lista de fases, ou redirecionou para o login | O comando mostra onde parou e salva o texto (com máscara de dados pessoais) em `data/pages/fases_<id>.txt`. Leia o arquivo antes de compartilhar |
 
 ---
 
