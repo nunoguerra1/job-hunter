@@ -70,7 +70,7 @@ def main(min_score: int = MIN_SCORE, rebuild: bool = False) -> None:
         print(f"{added_mail} e-mails novos na aba Candidaturas.")
     if applications:
         gupy_ws = open_worksheet("Gupy")
-        sync_gupy_tab(gupy_ws, applications)
+        sync_gupy_tab(gupy_ws, applications, store.gupy_phases())
         gupy_ws.freeze(rows=1)
         print(f"{len(applications)} candidaturas na aba Gupy.")
 

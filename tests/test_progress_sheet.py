@@ -98,9 +98,12 @@ def test_sync_outcomes_only_changes_system_statuses():
 def test_sync_gupy_tab_rewrites_everything_as_text():
     ws = FakeWorksheet()
     apps = [application(outcome=REJECTED)]
+    phases = {"10": ["Currículo", "Pré-entrevista"]}
 
-    assert sync_gupy_tab(ws, apps) == 1
+    assert sync_gupy_tab(ws, apps, phases) == 1
     assert ws.values[0] == GUPY_HEADERS
     assert ws.values[1][5] == "1/7"
-    assert ws.values[1][7] == REJECTED
+    assert ws.values[1][6] == "Currículo"
+    assert ws.values[1][7] == "Pré-entrevista"
+    assert ws.values[1][9] == REJECTED
     assert "F2:F" in ws.formats

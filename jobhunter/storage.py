@@ -1,3 +1,4 @@
+import json
 import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
@@ -80,6 +81,15 @@ class JobStore:
             self.conn.execute(
                 "ALTER TABLE gupy_applications ADD COLUMN outcome TEXT NOT NULL DEFAULT ''"
             )
+        self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS gupy_phases (
+                application_id TEXT PRIMARY KEY,
+                names TEXT NOT NULL,
+                read_at TEXT NOT NULL
+            )
+            """
+        )
         self.conn.commit()
 
     def add_new(self, jobs: list[Job]) -> list[Job]:
@@ -204,3 +214,15 @@ class JobStore:
         )
         self.conn.commit()
         return True
+
+    def save_gupy_phases(self, application_id: str, names: list[str]) -> None:
+        self.conn.execute(
+            "INSERT OR REPLACE INTO gupy_phases (application_id, names, read_at)"
+            " VALUES (?, ?, ?)",
+            (application_id, json.dumps(names, ensure_ascii=False), datetime.now(UTC).isoformat()),
+        )
+        self.conn.commit()
+
+    def gupy_phases(self) -> dict[str, list[str]]:
+        rows = self.conn.execute("SELECT application_id, names FROM gupy_phases").fetchall()
+        return {application_id: json.loads(names) for application_id, names in rows}

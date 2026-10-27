@@ -3,12 +3,13 @@ import re
 import gspread
 
 from jobhunter.mail_status import UPDATABLE
+from jobhunter.phases import current_and_next
 from jobhunter.progress import OUTCOME_STATUS
 from jobhunter.sheets import ETAPAS_COL, ID_COL, STATUS_COL
 
 GUPY_HEADERS = [
-    "Empresa", "Vaga", "Local", "Modalidade", "Contrato", "Etapa", "Aba da Gupy",
-    "Resultado", "Vaga na planilha", "ID da candidatura",
+    "Empresa", "Vaga", "Local", "Modalidade", "Contrato", "Etapa", "Fase atual",
+    "Próxima fase", "Aba da Gupy", "Resultado", "Vaga na planilha", "ID da candidatura",
 ]
 STAGE_COL = GUPY_HEADERS.index("Etapa")
 _SYSTEM_STAGE = re.compile(r"\d+/\d+")
@@ -58,7 +59,9 @@ def sync_outcomes(ws: gspread.Worksheet, applications: list[dict]) -> int:
     return len(updates)
 
 
-def _gupy_row(application: dict) -> list[str]:
+def _gupy_row(application: dict, phases: dict[str, list[str]]) -> list[str]:
+    names = phases.get(application["application_id"], [])
+    here, ahead = current_and_next(application["current"], names)
     return [
         application["company"],
         application["title"],
@@ -66,6 +69,8 @@ def _gupy_row(application: dict) -> list[str]:
         application["workplace"],
         application["contract"],
         stage_text(application),
+        here,
+        ahead,
         application["tab"],
         application["outcome"],
         application["job_uid"],
@@ -73,8 +78,10 @@ def _gupy_row(application: dict) -> list[str]:
     ]
 
 
-def sync_gupy_tab(ws: gspread.Worksheet, applications: list[dict]) -> int:
-    rows = [_gupy_row(application) for application in applications]
+def sync_gupy_tab(
+    ws: gspread.Worksheet, applications: list[dict], phases: dict[str, list[str]] | None = None
+) -> int:
+    rows = [_gupy_row(application, phases or {}) for application in applications]
     letter = chr(ord("A") + STAGE_COL)
     ws.clear()
     ws.format(f"{letter}2:{letter}", {"numberFormat": {"type": "TEXT"}})
