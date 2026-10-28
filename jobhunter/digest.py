@@ -1,6 +1,6 @@
 import os
 import sys
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -19,6 +19,7 @@ GOOD_SCORE = 80
 SOON_DAYS = 3
 FOLLOWUP_DAYS = 10
 MAX_ITEMS = 5
+MESSAGE_LIMIT = 3800
 TEST_WORDS = ("prova", "teste", "case", "desafio", "raciocinio", "tecnic", "dinamica")
 
 AWAITING_TITLE = "Aguardando a sua decisão no Telegram"
@@ -29,9 +30,37 @@ NEXT_TEST_TITLE = "Próxima fase com prova ou teste"
 WAITING_TITLE = "Sem resposta há 10 dias ou mais"
 FRESH_TITLE = "Boas vagas (nota 80+) sem candidatura preparada"
 
+HINTS = {
+    AWAITING_TITLE: "decidir: python -m jobhunter.bot",
+    APPROVED_TITLE: (
+        "enviar: python -m jobhunter.apply fill <id> (Gupy); nas outras, abra o link e "
+        "depois rode apply mark <id>"
+    ),
+    INCOMPLETE_TITLE: "concluir em 'Minhas candidaturas', Ver andamento",
+    FRESH_TITLE: "preparar: python -m jobhunter.prepare <id>",
+}
 
-def _line(job: Job) -> str:
-    return f"{job.title[:70]} | {job.company[:30]}"
+
+def _where(job: Job) -> str:
+    place = job.modality.value
+    if job.location:
+        place += f", {job.location.split(',')[0]}"
+    return place
+
+
+def _line(job: Job, *extra: str) -> str:
+    parts = [job.title[:70], job.company[:40], _where(job), *extra]
+    return " | ".join(part for part in parts if part)
+
+
+def _waiting_for(uid: str, times: dict[str, str], now: datetime) -> str:
+    moment = times.get(uid)
+    if not moment:
+        return ""
+    days = (now - datetime.fromisoformat(moment)).days
+    if days < 1:
+        return "hoje"
+    return f"há {days} dia{'s' if days != 1 else ''}"
 
 
 def _clip(items: list[str]) -> list[str]:
@@ -61,9 +90,11 @@ def upcoming_tests(store: JobStore) -> list[str]:
 def build_sections(
     store: JobStore, today: date, output: Path, now: datetime | None
 ) -> list[tuple[str, list[str]]]:
+    reference = now or datetime.now(UTC)
     jobs = [job for job in store.all() if is_open(job, today)]
     statuses = store.statuses()
     scores = store.scores()
+    times = store.status_times()
     awaiting = _with_status(jobs, statuses, AWAITING)
     approved = _with_status(jobs, statuses, APPROVED)
 
@@ -76,7 +107,8 @@ def build_sections(
         for row in incomplete_applications(store.gupy_applications())
     ]
     waiting = [
-        f"{days} dias | {_line(job)}" for job, days in due_followups(store, FOLLOWUP_DAYS, now)
+        f"{days} dias | {_line(job, job.uid)}"
+        for job, days in due_followups(store, FOLLOWUP_DAYS, now)
     ]
 
     fresh = [
@@ -92,13 +124,22 @@ def build_sections(
     fresh.sort(key=lambda item: item[0], reverse=True)
 
     return [
-        (AWAITING_TITLE, [_line(job) for job in awaiting]),
-        (APPROVED_TITLE, [_line(job) for job in approved]),
-        (SOON_TITLE, [f"prazo {job.deadline:%d/%m} | {_line(job)}" for job in due_soon]),
+        (
+            AWAITING_TITLE,
+            [_line(job, _waiting_for(job.uid, times, reference), job.uid) for job in awaiting],
+        ),
+        (
+            APPROVED_TITLE,
+            [_line(job, _waiting_for(job.uid, times, reference), job.uid) for job in approved],
+        ),
+        (
+            SOON_TITLE,
+            [f"prazo {job.deadline:%d/%m} | {_line(job, job.uid)}" for job in due_soon],
+        ),
         (INCOMPLETE_TITLE, incomplete),
         (NEXT_TEST_TITLE, upcoming_tests(store)),
         (WAITING_TITLE, waiting),
-        (FRESH_TITLE, [f"{score} | {_line(job)} | {job.uid}" for score, job in fresh]),
+        (FRESH_TITLE, [f"{score} | {_line(job, job.uid)}" for score, job in fresh]),
     ]
 
 
@@ -116,7 +157,24 @@ def build_digest(
     for title, items in filled:
         lines.append(f"\n{title} ({len(items)}):")
         lines.extend(f"- {item}" for item in _clip(items))
+        if title in HINTS:
+            lines.append(f"  -> {HINTS[title]}")
     return "\n".join(lines)
+
+
+def split_message(text: str, limit: int = MESSAGE_LIMIT) -> list[str]:
+    """O Telegram aceita ~4096 caracteres por mensagem: divide nas quebras de linha."""
+    chunks: list[str] = []
+    current = ""
+    for line in text.split("\n"):
+        if current and len(current) + len(line) + 1 > limit:
+            chunks.append(current)
+            current = line
+        else:
+            current = f"{current}\n{line}" if current else line
+    if current:
+        chunks.append(current)
+    return chunks
 
 
 def main(argv: list[str]) -> None:
@@ -124,7 +182,10 @@ def main(argv: list[str]) -> None:
     text = build_digest(JobStore())
     print(text)
     if "--send" in argv:
-        TelegramClient().send_message(int(os.environ["TELEGRAM_CHAT_ID"]), text)
+        client = TelegramClient()
+        chat_id = int(os.environ["TELEGRAM_CHAT_ID"])
+        for chunk in split_message(text):
+            client.send_message(chat_id, chunk)
         print("\nEnviado ao Telegram.")
 
 

@@ -9,9 +9,10 @@ from jobhunter.digest import (
     SOON_TITLE,
     WAITING_TITLE,
     build_digest,
+    split_message,
 )
 from jobhunter.match import MatchResult
-from jobhunter.models import Job
+from jobhunter.models import Job, Modality
 from jobhunter.storage import JobStore
 
 TODAY = date(2026, 10, 27)
@@ -135,3 +136,28 @@ def test_digest_flags_an_upcoming_test_phase(tmp_path):
 
     assert f"{NEXT_TEST_TITLE} (1):" in text
     assert "Nomus | próxima: Prova técnica (1/4)" in text
+
+def test_digest_shows_where_how_long_the_id_and_a_hint(tmp_path):
+    store = JobStore(":memory:")
+    store.add_new(
+        [job("1", "Estágio Híbrido", modality=Modality.HYBRID, location="Barueri, São Paulo")]
+    )
+    store.set_status("t:1", "approved")
+    later = datetime.now(UTC) + timedelta(days=12)
+
+    text = build_digest(store, today=TODAY, output=tmp_path, now=later)
+
+    assert "híbrida, Barueri" in text
+    assert "há 12 dias" in text
+    assert "t:1" in text
+    assert "apply fill <id>" in text
+
+
+def test_split_message_respects_the_limit_and_keeps_lines():
+    text = "\n".join(f"linha {number}" for number in range(50))
+
+    chunks = split_message(text, limit=100)
+
+    assert len(chunks) > 1
+    assert all(len(chunk) <= 100 for chunk in chunks)
+    assert "\n".join(chunks) == text

@@ -399,8 +399,8 @@ def print_report(store: JobStore) -> None:
         print(f"\nATENÇÃO: {len(pending)} candidatura(s) com 0/n:")
         for row in pending:
             print(f"  {row['company'][:28]} | {row['title'][:44]} | #{row['application_id']}")
-        print("A Vendemmia ficou em 0/4 até você terminar as perguntas e enviar. Confira")
-        print("em 'Ver andamento' se falta algo nesta(s); a empresa só avalia as finalizadas.")
+        print("Isso significa perguntas ainda não respondidas (confirmado na Vendemmia e na")
+        print("Bemobi). A empresa só avalia finalizadas: conclua em 'Ver andamento'.")
     unlinked = sum(1 for row in rows if not row["job_uid"])
     if unlinked:
         print(f"\n{unlinked} sem vaga ligada: normal para candidaturas feitas fora do sistema.")
