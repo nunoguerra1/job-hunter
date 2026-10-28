@@ -232,6 +232,7 @@ Leva alguns minutos. Ele roda 7 etapas em sequência e imprime um bloco para cad
 5. **Planilha:** atualiza as abas "Vagas" e "Candidaturas".
 6. **Telegram:** envia as candidaturas novas para revisão (os botões só funcionam no Passo 3).
 7. **Resumo do dia:** manda ao seu Telegram o que precisa de ação (aguardando decisão, aprovadas não enviadas, prazos em até 3 dias, incompletas, sem resposta há 10 dias, boas vagas sem candidatura e a próxima fase com prova ou teste). Ele só lê o banco: para atualizar etapas e resultados da Gupy, rode antes `python -m jobhunter.progress`.
+Cada linha mostra modalidade e cidade, há quanto tempo está parada e o id da vaga, e cada seção termina com o comando para agir. Se o resumo for longo, é dividido em mais de uma mensagem.
 
 No fim ele imprime `Resumo: tudo certo.` ou `falhou em ...`. **Um passo que falha não derruba os
 seguintes.** Erros temporários de IA (503) aparecem como `ERRO no lote` e são tentados de novo na
